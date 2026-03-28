@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spend Your Time</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Syne+Mono&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f5f0e8;
+    --bg2: #ede8de;
+    --bg3: #e4ddd0;
+    --ink: #1a1714;
+    --ink2: #4a4540;
+    --ink3: #8a847a;
+    --red: #c0392b;
+    --red-light: #f5d5d2;
+    --gold: #b8860b;
+    --gold-light: #f5ecd0;
+    --green: #2d6a4f;
+    --green-light: #d4ede1;
+    --blue: #1a4a7a;
+    --blue-light: #d0e4f5;
+    --purple: #5a2d82;
+    --purple-light: #e4d4f5;
+    --orange: #c05a10;
+    --orange-light: #f5ddc8;
+    --border: rgba(26,23,20,0.12);
+    --border-strong: rgba(26,23,20,0.25);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grain texture */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+    opacity: 0.04;
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  /* ── HEADER ── */
+  header {
+    border-bottom: 2px solid var(--ink);
+    padding: 0 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 64px;
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    z-index: 100;
+  }
+
+  .logo {
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+
+  .header-right {
+    font-family: 'Syne Mono', monospace;
+    font-size: 12px;
+    color: var(--ink3);
+  }
+
+  /* ── HERO ── */
+  #hero {
+    padding: 80px 40px 60px;
+    max-width: 1100px;
+    margin: 0 auto;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .hero-kicker {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--red);
+    margin-bottom: 20px;
+  }
+
+  h1 {
+    font-size: clamp(52px, 9vw, 110px);
+    font-weight: 800;
+    line-height: 0.92;
+    letter-spacing: -0.03em;
+    margin-bottom: 32px;
+  }
+
+  h1 span {
+    display: block;
+    color: var(--ink3);
+    font-weight: 400;
+  }
+
+  .hero-desc {
+    font-size: 16px;
+    color: var(--ink2);
+    line-height: 1.7;
+    max-width: 500px;
+    margin-bottom: 40px;
+  }
+
+  /* ── LIFE COUNTER DISPLAY ── */
+  #life-display {
+    background: var(--ink);
+    color: var(--bg);
+    padding: 40px;
+    max-width: 1100px;
+    margin: 0 auto;
+    border-bottom: 2px solid var(--ink);
+    position: relative;
+    overflow: hidden;
+  }
+
+  #life-display::before {
+    content: 'YOUR LIFE IN SECONDS';
+    position: absolute;
+    top: 16px; right: 24px;
+    font-size: 10px;
+    letter-spacing: 0.25em;
+    color: rgba(245,240,232,0.3);
+  }
+
+  .life-counter-row {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  #seconds-remaining {
+    font-family: 'Syne Mono', monospace;
+    font-size: clamp(36px, 7vw, 72px);
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    transition: color 0.3s;
+    line-height: 1;
+  }
+
+  #seconds-remaining.danger { color: #ff6b6b; }
+  #seconds-remaining.warning { color: #ffd93d; }
+  #seconds-remaining.ok { color: var(--bg); }
+
+  .life-label {
+    font-size: 13px;
+    color: rgba(245,240,232,0.5);
+    letter-spacing: 0.1em;
+  }
+
+  /* Life bar */
+  .life-bar-wrap {
+    margin-top: 24px;
+    position: relative;
+  }
+
+  .life-bar-track {
+    height: 8px;
+    background: rgba(245,240,232,0.15);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  #life-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    background: var(--bg);
+    transition: width 0.6s cubic-bezier(0.16,1,0.3,1), background 0.3s;
+    width: 100%;
+  }
+
+  #life-bar-fill.danger { background: #ff6b6b; }
+  #life-bar-fill.warning { background: #ffd93d; }
+
+  .life-bar-labels {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 8px;
+    font-size: 11px;
+    color: rgba(245,240,232,0.4);
+    font-family: 'Syne Mono', monospace;
+  }
+
+  /* Spent list inside life display */
+  #spent-list {
+    margin-top: 20px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .spent-tag {
+    font-size: 12px;
+    background: rgba(245,240,232,0.1);
+    border: 1px solid rgba(245,240,232,0.2);
+    padding: 4px 12px;
+    border-radius: 2px;
+    font-family: 'Syne Mono', monospace;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    animation: tagIn 0.3s ease forwards;
+  }
+
+  @keyframes tagIn {
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  .spent-tag .remove-btn {
+    cursor: pointer;
+    opacity: 0.5;
+    transition: opacity 0.2s;
+    font-size: 14px;
+    line-height: 1;
+    background: none;
+    border: none;
+    color: var(--bg);
+    padding: 0;
+    font-family: inherit;
+  }
+  .spent-tag .remove-btn:hover { opacity: 1; }
+
+  /* ── AGE INPUT ── */
+  #age-section {
+    padding: 40px;
+    max-width: 1100px;
+    margin: 0 auto;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 40px;
+    flex-wrap: wrap;
+  }
+
+  .age-label {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .age-slider-wrap {
+    flex: 1;
+    min-width: 200px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  input[type="range"] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 3px;
+    background: var(--border-strong);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 20px; height: 20px;
+    background: var(--ink);
+    border-radius: 50%;
+    cursor: pointer;
+    transition: transform 0.15s;
+  }
+
+  input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+
+  .age-readout {
+    font-family: 'Syne Mono', monospace;
+    font-size: 13px;
+    color: var(--ink3);
+  }
+
+  .age-stat {
+    font-size: 13px;
+    color: var(--ink2);
+    line-height: 1.6;
+  }
+
+  .age-stat strong {
+    font-weight: 700;
+    color: var(--ink);
+  }
+
+  /* ── SHOP SECTION ── */
+  #shop {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 40px 80px;
+  }
+
+  .shop-header {
+    padding: 48px 0 32px;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    border-bottom: 2px solid var(--ink);
+    margin-bottom: 0;
+  }
+
+  .shop-header h2 {
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+
+  .shop-header-sub {
+    font-size: 12px;
+    color: var(--ink3);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  /* Filter tabs */
+  .filter-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 0;
+    overflow-x: auto;
+  }
+
+  .filter-tab {
+    padding: 14px 20px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border: none;
+    background: none;
+    color: var(--ink3);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: color 0.2s, border-color 0.2s;
+    white-space: nowrap;
+    font-family: 'Syne', sans-serif;
+  }
+
+  .filter-tab:hover { color: var(--ink); }
+  .filter-tab.active { color: var(--ink); border-bottom-color: var(--ink); }
+
+  /* Activity grid */
+  #activity-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 0;
+  }
+
+  .activity-card {
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    padding: 24px;
+    cursor: pointer;
+    transition: background 0.18s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .activity-card:nth-child(3n) { border-right: none; }
+  .activity-card:hover { background: var(--bg2); }
+  .activity-card:active { background: var(--bg3); }
+
+  .activity-card::after {
+    content: '+';
+    position: absolute;
+    right: 16px; top: 16px;
+    font-size: 20px;
+    color: var(--border-strong);
+    transition: color 0.2s, transform 0.2s;
+  }
+
+  .activity-card:hover::after { color: var(--ink); transform: scale(1.2) rotate(45deg); }
+
+  .card-emoji { font-size: 28px; margin-bottom: 12px; display: block; }
+
+  .card-name {
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 4px;
+    line-height: 1.2;
+    padding-right: 24px;
+  }
+
+  .card-desc {
+    font-size: 12px;
+    color: var(--ink3);
+    line-height: 1.6;
+    margin-bottom: 14px;
+  }
+
+  .card-cost {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .cost-pill {
+    font-family: 'Syne Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 2px;
+    border: 1.5px solid;
+  }
+
+  .cost-years {
+    font-size: 11px;
+    color: var(--ink3);
+    font-family: 'Syne Mono', monospace;
+  }
+
+  .card-count {
+    position: absolute;
+    bottom: 16px; right: 16px;
+    font-family: 'Syne Mono', monospace;
+    font-size: 11px;
+    color: var(--ink3);
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .activity-card.used .card-count { opacity: 1; }
+
+  /* hidden when filtered */
+  .activity-card.hidden { display: none; }
+
+  /* Category colours */
+  .cat-watch   { --cat: var(--blue); --cat-l: var(--blue-light); }
+  .cat-travel  { --cat: var(--green); --cat-l: var(--green-light); }
+  .cat-eat     { --cat: var(--orange); --cat-l: var(--orange-light); }
+  .cat-learn   { --cat: var(--purple); --cat-l: var(--purple-light); }
+  .cat-sleep   { --cat: var(--ink); --cat-l: var(--bg3); }
+  .cat-sport   { --cat: var(--red); --cat-l: var(--red-light); }
+  .cat-social  { --cat: var(--gold); --cat-l: var(--gold-light); }
+  .cat-work    { --cat: var(--ink2); --cat-l: var(--bg2); }
+
+  .cost-pill { color: var(--cat); border-color: var(--cat); background: var(--cat-l); }
+
+  /* ── PANIC OVERLAY ── */
+  #panic {
+    position: fixed;
+    inset: 0;
+    background: var(--red);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 9998;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.5s;
+  }
+  #panic.show { opacity: 1; pointer-events: all; }
+  #panic h2 { font-size: 48px; font-weight: 800; color: #fff; text-align: center; }
+  #panic p { color: rgba(255,255,255,0.8); font-size: 16px; margin-top: 16px; text-align: center; }
+  #panic button {
+    margin-top: 32px; padding: 14px 32px;
+    background: #fff; color: var(--red);
+    border: none; font-family: 'Syne', sans-serif;
+    font-size: 14px; font-weight: 700; cursor: pointer;
+    border-radius: 2px; letter-spacing: 0.1em; text-transform: uppercase;
+  }
+
+  /* ── RESET ── */
+  #reset-btn {
+    display: inline-block;
+    margin: 0 40px 60px;
+    padding: 12px 24px;
+    border: 2px solid var(--ink);
+    background: none;
+    font-family: 'Syne', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    cursor: pointer;
+    color: var(--ink);
+    transition: background 0.15s, color 0.15s;
+    border-radius: 2px;
+  }
+  #reset-btn:hover { background: var(--ink); color: var(--bg); }
+
+  /* ── TOOLTIP ── */
+  .tooltip {
+    position: fixed;
+    background: var(--ink);
+    color: var(--bg);
+    padding: 8px 14px;
+    font-size: 12px;
+    font-family: 'Syne Mono', monospace;
+    border-radius: 2px;
+    pointer-events: none;
+    z-index: 500;
+    transform: translate(-50%, -140%);
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+  .tooltip.show { opacity: 1; }
+
+  /* Shake animation */
+  @keyframes shake {
+    0%,100%{transform:translateX(0)}
+    20%{transform:translateX(-6px)}
+    40%{transform:translateX(6px)}
+    60%{transform:translateX(-4px)}
+    80%{transform:translateX(4px)}
+  }
+  .shake { animation: shake 0.4s ease; }
+
+  /* Bounce-in for counter */
+  @keyframes countBounce {
+    0%{transform:scale(1)} 30%{transform:scale(1.08)} 100%{transform:scale(1)}
+  }
+  .bounce { animation: countBounce 0.3s ease; }
+
+  /* Mobile */
+  @media (max-width:640px) {
+    header { padding: 0 20px; }
+    #hero, #age-section, #shop { padding-left: 20px; padding-right: 20px; }
+    #life-display { padding: 24px 20px; }
+    h1 { font-size: 48px; }
+    #activity-grid { grid-template-columns: 1fr 1fr; }
+    .activity-card:nth-child(3n) { border-right: 1px solid var(--border); }
+    .activity-card:nth-child(2n) { border-right: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Spend Your Time</div>
+  <div class="header-right" id="header-pct">100.00% remaining</div>
+</header>
+
+<!-- Hero -->
+<section id="hero">
+  <p class="hero-kicker">A thought experiment</p>
+  <h1>2,500,000,000<span>seconds to spend.</span></h1>
+  <p class="hero-desc">The average human lifespan is roughly 2.5 billion seconds. You've already used some of them. Spend the rest — then see what's left.</p>
+</section>
+
+<!-- Life display -->
+<div id="life-display">
+  <div class="life-counter-row">
+    <div id="seconds-remaining" class="ok">2,500,000,000</div>
+    <div class="life-label">seconds remaining</div>
+  </div>
+  <div class="life-bar-wrap">
+    <div class="life-bar-track">
+      <div id="life-bar-fill"></div>
+    </div>
+    <div class="life-bar-labels">
+      <span>birth</span>
+      <span id="bar-label-mid"></span>
+      <span>~79 yrs</span>
+    </div>
+  </div>
+  <div id="spent-list"></div>
+</div>
+
+<!-- Age input -->
+<div id="age-section">
+  <span class="age-label">Your age</span>
+  <div class="age-slider-wrap">
+    <input type="range" id="age-slider" min="1" max="78" value="25" step="1">
+    <div class="age-readout"><span id="age-val">25</span> years old</div>
+  </div>
+  <div class="age-stat">
+    You've already spent <strong id="age-spent">789,000,000</strong> seconds.<br>
+    <strong id="age-left">1,711,000,000</strong> remain in your budget.
+  </div>
+</div>
+
+<!-- Shop -->
+<section id="shop">
+  <div class="shop-header">
+    <h2>What will you spend them on?</h2>
+    <span class="shop-header-sub">Click to spend</span>
+  </div>
+
+  <div class="filter-tabs" id="filter-tabs">
+    <button class="filter-tab active" data-cat="all">All</button>
+    <button class="filter-tab" data-cat="watch">📺 Watch</button>
+    <button class="filter-tab" data-cat="travel">✈️ Travel</button>
+    <button class="filter-tab" data-cat="eat">🍽️ Eat & Drink</button>
+    <button class="filter-tab" data-cat="learn">📚 Learn</button>
+    <button class="filter-tab" data-cat="sport">🏃 Sport</button>
+    <button class="filter-tab" data-cat="sleep">😴 Sleep</button>
+    <button class="filter-tab" data-cat="social">👥 Social</button>
+    <button class="filter-tab" data-cat="work">💼 Work</button>
+  </div>
+
+  <div id="activity-grid"></div>
+</section>
+
+<button id="reset-btn" onclick="resetAll()">↺ Reset everything</button>
+
+<!-- Panic -->
+<div id="panic">
+  <h2>Time's up.</h2>
+  <p>You've spent your entire life.<br>Was it worth it?</p>
+  <button onclick="document.getElementById('panic').classList.remove('show')">Keep going anyway</button>
+</div>
+
+<!-- Tooltip -->
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+const LIFESPAN = 2_500_000_000;
+const SEC_PER_YEAR = 31_557_600;
+
+const activities = [
+  // Watch
+  { id:'avengers', name:'Binge the MCU', emoji:'🦸', cat:'watch', desc:'All 33 Marvel films back to back', secs:193200, unit:'full marathon' },
+  { id:'sopranos', name:'Watch The Sopranos', emoji:'🍝', cat:'watch', desc:'All 86 episodes, twice', secs:561600, unit:'full rewatch' },
+  { id:'netflix_year', name:'One year of Netflix', emoji:'📺', cat:'watch', desc:'Average viewer: ~2h/day', secs:2628000, unit:'year of binging' },
+  { id:'olympics', name:'Watch every Olympics', emoji:'🥇', cat:'watch', desc:'Every summer & winter Games since 1896', secs:8_208_000, unit:'full coverage' },
+  { id:'simpsons', name:'Watch all The Simpsons', emoji:'🛋️', cat:'watch', desc:'Every episode of every season', secs:637_200, unit:'complete series' },
+  { id:'worldcup', name:'Every FIFA World Cup', emoji:'⚽', cat:'watch', desc:'All matches, all tournaments since 1930', secs:5_184_000, unit:'every game' },
+  { id:'shakespeare', name:'Read all Shakespeare', emoji:'📜', cat:'watch', desc:'Every play and sonnet aloud', secs:302_400, unit:'complete works' },
+
+  // Travel
+  { id:'moon', name:'Travel to the Moon', emoji:'🌕', cat:'travel', desc:'Apollo 11 journey time, one way', secs:345_600, unit:'one way trip' },
+  { id:'earth_walk', name:'Walk around Earth', emoji:'🌍', cat:'travel', desc:'40,075 km at 5 km/h, non-stop', secs:28_854_000, unit:'full circumference' },
+  { id:'everest', name:'Climb Everest', emoji:'🏔️', cat:'travel', desc:'Avg expedition: 40 days summit to base', secs:3_456_000, unit:'full expedition' },
+  { id:'backpack_europe', name:'Backpack Europe', emoji:'🎒', cat:'travel', desc:'3 months travelling 30 countries', secs:7_776_000, unit:'full trip' },
+  { id:'trans_siberian', name:'Trans-Siberian Railway', emoji:'🚂', cat:'travel', desc:'Moscow to Vladivostok, 9,289 km', secs:604_800, unit:'full journey' },
+  { id:'sail_world', name:'Sail around the world', emoji:'⛵', cat:'travel', desc:'Solo circumnavigation ~120 days', secs:10_368_000, unit:'full voyage' },
+  { id:'roadtrip_australia', name:'Drive across Australia', emoji:'🦘', cat:'travel', desc:'Perth to Sydney, with stops', secs:1_209_600, unit:'full road trip' },
+
+  // Eat & drink
+  { id:'coffee', name:'Brew a lifetime of coffee', emoji:'☕', cat:'eat', desc:'2 cups a day for 50 years', secs:9_125_000, unit:'lifetime habit' },
+  { id:'pizza_world', name:'Eat all pizza ever made', emoji:'🍕', cat:'eat', desc:'Time to eat 5 billion pizzas @ 20 min each', secs:5_000_000_000, unit:'all the pizza' },
+  { id:'michelin', name:'Every Michelin 3-star meal', emoji:'⭐', cat:'eat', desc:'~150 restaurants, 3-hour dinner each', secs:1_620_000, unit:'full tour' },
+  { id:'wine', name:'Learn to make wine', emoji:'🍷', cat:'eat', desc:'One complete vintage cycle', secs:31_536_000, unit:'full vintage' },
+  { id:'bake_bread', name:'Bake a loaf every week', emoji:'🍞', cat:'eat', desc:'Every Sunday for 10 years', secs:18_720_000, unit:'10 year habit' },
+
+  // Learn
+  { id:'harvard', name:'Harvard degree', emoji:'🎓', cat:'learn', desc:'4-year full-time undergraduate', secs:126_144_000, unit:'full degree' },
+  { id:'language', name:'Learn a new language', emoji:'🗣️', cat:'learn', desc:'~600 hrs to B2 fluency (FSI estimate)', secs:2_160_000, unit:'to fluency' },
+  { id:'piano', name:'Master the piano', emoji:'🎹', cat:'learn', desc:'~10,000 hours of deliberate practice', secs:36_000_000, unit:'to mastery' },
+  { id:'read_books', name:'Read 1,000 books', emoji:'📚', cat:'learn', desc:'At 8 hrs each, 250 pages avg', secs:28_800_000, unit:'1,000 books' },
+  { id:'phd', name:'Complete a PhD', emoji:'🔬', cat:'learn', desc:'Average 5–7 years full-time', secs:189_216_000, unit:'full doctorate' },
+  { id:'code', name:'Learn to code well', emoji:'💻', cat:'learn', desc:'~1,000 hrs to job-ready', secs:3_600_000, unit:'to proficiency' },
+
+  // Sport
+  { id:'marathon', name:'Run a marathon', emoji:'🏃', cat:'sport', desc:'World avg finishing time: ~4h 30m', secs:16_200, unit:'one race' },
+  { id:'tour_de_france', name:'Complete Tour de France', emoji:'🚴', cat:'sport', desc:'21 stages, ~87 hours riding', secs:313_200, unit:'full tour' },
+  { id:'ironman', name:'Complete an Ironman', emoji:'🏊', cat:'sport', desc:'Swim 3.8km + bike 180km + run 42km', secs:50_400, unit:'one race' },
+  { id:'everest_training', name:'Train for Everest', emoji:'🧗', cat:'sport', desc:'Typical prep: 12 months of training', secs:31_557_600, unit:'full prep' },
+  { id:'swim_channel', name:'Swim the English Channel', emoji:'🌊', cat:'sport', desc:'Average crossing: ~13.5 hours', secs:48_600, unit:'one crossing' },
+  { id:'yoga_year', name:'Daily yoga for a decade', emoji:'🧘', cat:'sport', desc:'1 hour a day for 10 years', secs:36_500_000, unit:'10-year practice' },
+
+  // Sleep
+  { id:'sleep_rec', name:'Sleep the recommended amount', emoji:'😴', cat:'sleep', desc:'8 hours a night for 10 years', secs:292_000_000, unit:'10-year habit' },
+  { id:'power_nap', name:'10,000 power naps', emoji:'💤', cat:'sleep', desc:'20 minutes each — the perfect nap', secs:12_000_000, unit:'all the naps' },
+  { id:'hibernate', name:'Hibernate like a bear', emoji:'🐻', cat:'sleep', desc:'6 months of winter sleep', secs:15_768_000, unit:'one winter' },
+  { id:'dream', name:'Time spent dreaming', emoji:'🌙', cat:'sleep', desc:'Avg 2 hrs REM sleep nightly for 20 years', secs:52_560_000, unit:'20 years of dreams' },
+
+  // Social
+  { id:'instagram', name:'Scroll Instagram', emoji:'📱', cat:'social', desc:'Average user: 53 min/day for 5 years', secs:57_522_500, unit:'5 year habit' },
+  { id:'dinner_party', name:'Host 500 dinner parties', emoji:'🥂', cat:'social', desc:'3 hours each, good company', secs:5_400_000, unit:'500 evenings' },
+  { id:'write_letters', name:'Write to everyone you know', emoji:'✉️', cat:'social', desc:'Handwritten letter to 200 people', secs:360_000, unit:'full correspondence' },
+  { id:'volunteer', name:'Volunteer for a decade', emoji:'🤝', cat:'social', desc:'4 hours a week, every week', secs:83_200_000, unit:'10-year commitment' },
+
+  // Work
+  { id:'career', name:'Full 40-year career', emoji:'💼', cat:'work', desc:'40h/week, 48 weeks/year', secs:276_480_000, unit:'full career' },
+  { id:'startup', name:'Build a startup', emoji:'🚀', cat:'work', desc:'60h/week for 5 years until exit or failure', secs:94_608_000, unit:'full grind' },
+  { id:'write_novel', name:'Write a novel', emoji:'✍️', cat:'work', desc:'~500 hours to draft + revise', secs:1_800_000, unit:'one novel' },
+  { id:'paint', name:'Paint like da Vinci', emoji:'🎨', cat:'work', desc:'Mona Lisa took ~4 years, at 40h/week', secs:29_030_400, unit:'one masterpiece' },
+];
+
+let budget = LIFESPAN;
+let purchases = {};
+let currentAge = 25;
+
+function fmt(n) {
+  return Math.round(n).toLocaleString();
+}
+
+function secsToReadable(s) {
+  if (s < 3600) return `${Math.round(s/60)} min`;
+  if (s < 86400) return `${(s/3600).toFixed(1)} hrs`;
+  if (s < 604800) return `${Math.round(s/86400)} days`;
+  if (s < 2629800) return `${(s/604800).toFixed(1)} wks`;
+  if (s < 31557600) return `${(s/2629800).toFixed(1)} mo`;
+  return `${(s/31557600).toFixed(1)} yrs`;
+}
+
+function ageAdjustedBudget(age) {
+  const used = age * SEC_PER_YEAR;
+  return Math.max(0, LIFESPAN - used);
+}
+
+function updateDisplay() {
+  const totalSpent = Object.entries(purchases).reduce((sum, [id, qty]) => {
+    const act = activities.find(a => a.id === id);
+    return sum + (act ? act.secs * qty : 0);
+  }, 0);
+
+  const remaining = Math.max(0, budget - totalSpent);
+  const pct = remaining / LIFESPAN;
+
+  const el = document.getElementById('seconds-remaining');
+  el.textContent = fmt(remaining);
+  el.classList.remove('ok','warning','danger');
+  el.classList.add(pct < 0.1 ? 'danger' : pct < 0.25 ? 'warning' : 'ok');
+
+  const bar = document.getElementById('life-bar-fill');
+  bar.style.width = (pct * 100) + '%';
+  bar.classList.remove('ok','warning','danger');
+  bar.classList.add(pct < 0.1 ? 'danger' : pct < 0.25 ? 'warning' : '');
+
+  document.getElementById('header-pct').textContent = (pct * 100).toFixed(2) + '% remaining';
+  document.getElementById('bar-label-mid').textContent = secsToReadable(remaining) + ' left';
+
+  if (remaining <= 0) {
+    setTimeout(() => document.getElementById('panic').classList.add('show'), 800);
+  }
+
+  // Spent tags
+  const list = document.getElementById('spent-list');
+  list.innerHTML = '';
+  Object.entries(purchases).forEach(([id, qty]) => {
+    const act = activities.find(a => a.id === id);
+    if (!act || qty === 0) return;
+    const tag = document.createElement('div');
+    tag.className = 'spent-tag';
+    tag.innerHTML = `${act.emoji} ${act.name}${qty > 1 ? ' ×' + qty : ''} <button class="remove-btn" onclick="removeOne('${id}')">×</button>`;
+    list.appendChild(tag);
+  });
+}
+
+function updateAge() {
+  const age = parseInt(document.getElementById('age-slider').value);
+  currentAge = age;
+  document.getElementById('age-val').textContent = age;
+  const used = Math.round(age * SEC_PER_YEAR);
+  const left = LIFESPAN - used;
+  document.getElementById('age-spent').textContent = fmt(used);
+  document.getElementById('age-left').textContent = fmt(left);
+  budget = left;
+  purchases = {};
+  renderTags();
+  updateDisplay();
+  updateCards();
+}
+
+function renderTags() {
+  document.getElementById('spent-list').innerHTML = '';
+}
+
+function buy(id) {
+  const act = activities.find(a => a.id === id);
+  if (!act) return;
+  const totalSpent = Object.entries(purchases).reduce((sum, [pid, qty]) => {
+    const a = activities.find(x => x.id === pid);
+    return sum + (a ? a.secs * qty : 0);
+  }, 0);
+
+  if (totalSpent + act.secs > budget) {
+    const card = document.getElementById('card-' + id);
+    card.classList.add('shake');
+    setTimeout(() => card.classList.remove('shake'), 400);
+    return;
+  }
+
+  purchases[id] = (purchases[id] || 0) + 1;
+
+  const card = document.getElementById('card-' + id);
+  card.classList.add('used');
+  card.querySelector('.card-count').textContent = '×' + purchases[id];
+
+  updateDisplay();
+  updateCards();
+}
+
+function removeOne(id) {
+  if (!purchases[id]) return;
+  purchases[id]--;
+  if (purchases[id] === 0) {
+    delete purchases[id];
+    const card = document.getElementById('card-' + id);
+    if (card) {
+      card.classList.remove('used');
+      card.querySelector('.card-count').textContent = '';
+    }
+  }
+  updateDisplay();
+  updateCards();
+}
+
+function updateCards() {
+  activities.forEach(act => {
+    const card = document.getElementById('card-' + act.id);
+    if (!card) return;
+    // Dim if can't afford
+    const totalSpent = Object.entries(purchases).reduce((sum, [id, qty]) => {
+      const a = activities.find(x => x.id === id);
+      return sum + (a ? a.secs * qty : 0);
+    }, 0);
+    const canAfford = (totalSpent + act.secs) <= budget;
+    card.style.opacity = canAfford ? '1' : '0.4';
+    card.style.pointerEvents = canAfford || purchases[act.id] ? 'auto' : 'auto';
+  });
+}
+
+function resetAll() {
+  purchases = {};
+  document.querySelectorAll('.activity-card').forEach(c => {
+    c.classList.remove('used', 'shake');
+    c.querySelector('.card-count').textContent = '';
+    c.style.opacity = '1';
+  });
+  updateDisplay();
+}
+
+// Build grid
+const grid = document.getElementById('activity-grid');
+
+activities.forEach(act => {
+  const card = document.createElement('div');
+  card.className = `activity-card cat-${act.cat}`;
+  card.id = 'card-' + act.id;
+  card.dataset.cat = act.cat;
+  const years = (act.secs / SEC_PER_YEAR);
+  const yLabel = years >= 1 ? years.toFixed(1) + ' yrs' : secsToReadable(act.secs);
+  card.innerHTML = `
+    <span class="card-emoji">${act.emoji}</span>
+    <div class="card-name">${act.name}</div>
+    <div class="card-desc">${act.desc}</div>
+    <div class="card-cost">
+      <span class="cost-pill">${fmt(act.secs)} sec</span>
+      <span class="cost-years">≈ ${yLabel} of life</span>
+    </div>
+    <div class="card-count"></div>
+  `;
+  card.addEventListener('click', () => buy(act.id));
+  grid.appendChild(card);
+});
+
+// Filter tabs
+document.querySelectorAll('.filter-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    const cat = tab.dataset.cat;
+    document.querySelectorAll('.activity-card').forEach(card => {
+      card.classList.toggle('hidden', cat !== 'all' && card.dataset.cat !== cat);
+    });
+  });
+});
+
+// Age slider
+document.getElementById('age-slider').addEventListener('input', updateAge);
+
+// Init
+updateAge();
+</script>
+</body>
+</html>

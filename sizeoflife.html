@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Size of Life</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0c0f;
+    --bg2: #111418;
+    --bg3: #181d22;
+    --text: #e8e4da;
+    --muted: #7a7670;
+    --accent: #c8a96e;
+    --accent2: #5b8fa8;
+    --border: rgba(255,255,255,0.07);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    overflow-x: hidden;
+    cursor: none;
+  }
+
+  /* Custom cursor */
+  #cursor {
+    position: fixed;
+    width: 12px; height: 12px;
+    border: 1.5px solid var(--accent);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 9999;
+    transform: translate(-50%, -50%);
+    transition: transform 0.08s, width 0.2s, height 0.2s, border-color 0.2s;
+    mix-blend-mode: difference;
+  }
+  #cursor.big { width: 40px; height: 40px; }
+
+  /* Progress */
+  #progress {
+    position: fixed;
+    top: 0; left: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    z-index: 100;
+    width: 0%;
+    transition: width 0.1s linear;
+  }
+
+  /* Noise texture overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");
+    opacity: 0.025;
+    pointer-events: none;
+    z-index: 1000;
+  }
+
+  /* Hero */
+  #hero {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    border-bottom: 1px solid var(--border);
+    overflow: hidden;
+  }
+
+  #hero::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 50%;
+    transform: translateX(-50%);
+    width: 1px;
+    height: 80px;
+    background: linear-gradient(to bottom, var(--accent), transparent);
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse { 0%,100%{opacity:0.4} 50%{opacity:1} }
+
+  .hero-eyebrow {
+    font-size: 11px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 24px;
+    opacity: 0;
+    animation: fadeUp 0.8s ease forwards 0.2s;
+  }
+
+  .hero-title {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(52px, 10vw, 120px);
+    font-weight: 700;
+    line-height: 0.9;
+    text-align: center;
+    letter-spacing: -0.02em;
+    opacity: 0;
+    animation: fadeUp 0.9s ease forwards 0.4s;
+  }
+
+  .hero-title em {
+    font-style: italic;
+    color: var(--accent);
+  }
+
+  .hero-sub {
+    margin-top: 32px;
+    font-size: 13px;
+    color: var(--muted);
+    text-align: center;
+    line-height: 1.8;
+    max-width: 380px;
+    opacity: 0;
+    animation: fadeUp 0.9s ease forwards 0.6s;
+  }
+
+  .hero-scroll {
+    margin-top: 60px;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+    opacity: 0;
+    animation: fadeUp 0.9s ease forwards 0.8s;
+  }
+
+  /* Floating particles in hero */
+  .particle {
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+    animation: float linear infinite;
+    opacity: 0;
+  }
+
+  @keyframes float {
+    0% { transform: translateY(100vh) rotate(0deg); opacity: 0; }
+    10% { opacity: 0.4; }
+    90% { opacity: 0.4; }
+    100% { transform: translateY(-100px) rotate(360deg); opacity: 0; }
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Scale intro bar */
+  #scale-intro {
+    padding: 60px 40px;
+    max-width: 860px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 32px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .scale-label {
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  .scale-ruler {
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(to right, var(--accent), var(--accent2), transparent);
+  }
+
+  /* Main scroll container */
+  #animals {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 0 40px 120px;
+  }
+
+  /* Animal entry */
+  .animal-entry {
+    display: grid;
+    grid-template-columns: 180px 1fr;
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+    min-height: 100px;
+    opacity: 0;
+    transform: translateX(-30px);
+    transition: opacity 0.7s ease, transform 0.7s ease;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .animal-entry.visible {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  .animal-entry:hover .animal-bg-text {
+    opacity: 0.06;
+    transform: translateX(0) scale(1.02);
+  }
+
+  .animal-bg-text {
+    position: absolute;
+    right: -20px;
+    bottom: -10px;
+    font-family: 'Playfair Display', serif;
+    font-size: 80px;
+    font-weight: 700;
+    color: var(--text);
+    opacity: 0;
+    transition: opacity 0.4s, transform 0.4s;
+    pointer-events: none;
+    transform: translateX(20px) scale(0.98);
+    line-height: 1;
+    user-select: none;
+  }
+
+  /* Left: metadata */
+  .animal-meta {
+    padding: 28px 24px 28px 0;
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    position: relative;
+  }
+
+  .animal-number {
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.2em;
+    margin-bottom: 8px;
+  }
+
+  .animal-name {
+    font-family: 'Playfair Display', serif;
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1.1;
+    margin-bottom: 4px;
+  }
+
+  .animal-latin {
+    font-size: 11px;
+    font-style: italic;
+    color: var(--muted);
+    margin-bottom: 12px;
+    font-family: 'Playfair Display', serif;
+  }
+
+  .animal-size-tag {
+    display: inline-block;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    padding: 4px 10px;
+    border: 1px solid;
+    border-radius: 2px;
+    align-self: flex-start;
+  }
+
+  /* Right: bar + info */
+  .animal-right {
+    padding: 28px 0 28px 28px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 14px;
+    position: relative;
+  }
+
+  .bar-container {
+    display: flex;
+    align-items: flex-end;
+    gap: 0;
+    height: 44px;
+  }
+
+  .bar-fill {
+    border-radius: 2px;
+    height: 100%;
+    position: relative;
+    transform-origin: left center;
+    transform: scaleX(0);
+    transition: transform 0.9s cubic-bezier(0.16, 1, 0.3, 1);
+    min-width: 3px;
+  }
+
+  .animal-entry.visible .bar-fill {
+    transform: scaleX(1);
+  }
+
+  .bar-emoji {
+    font-size: 22px;
+    margin-left: 10px;
+    align-self: flex-end;
+    margin-bottom: 6px;
+    line-height: 1;
+    animation: wobble 3s ease-in-out infinite;
+  }
+
+  @keyframes wobble {
+    0%,100% { transform: rotate(-3deg); }
+    50% { transform: rotate(3deg); }
+  }
+
+  .animal-fact {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.7;
+    max-width: 500px;
+    padding-right: 40px;
+  }
+
+  .animal-fact strong {
+    color: var(--text);
+    font-weight: 400;
+  }
+
+  /* Divider animals (large headers between groups) */
+  .group-header {
+    padding: 48px 0 16px;
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+  }
+
+  .group-header-label {
+    font-size: 11px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  .group-header-line {
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* Comparison callout */
+  .comparison-note {
+    margin: 0;
+    padding: 20px 28px;
+    background: var(--bg3);
+    border-left: 2px solid var(--accent);
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.8;
+    opacity: 0;
+    transition: opacity 0.6s;
+  }
+  .comparison-note.visible { opacity: 1; }
+  .comparison-note strong { color: var(--accent); font-weight: 400; }
+
+  /* End section */
+  #end {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 80px 40px 120px;
+    text-align: center;
+    border-top: 1px solid var(--border);
+  }
+
+  #end h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 36px;
+    font-weight: 700;
+    margin-bottom: 20px;
+    line-height: 1.2;
+  }
+
+  #end p {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.9;
+    max-width: 520px;
+    margin: 0 auto 12px;
+  }
+
+  #end .big-ratio {
+    font-family: 'Playfair Display', serif;
+    font-size: 64px;
+    color: var(--accent);
+    margin: 32px 0 8px;
+    font-weight: 700;
+  }
+
+  #end .ratio-label {
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 40px;
+  }
+
+  /* Minimap sidebar */
+  #minimap {
+    position: fixed;
+    right: 24px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    z-index: 50;
+  }
+
+  .minimap-dot {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--muted);
+    transition: background 0.3s, transform 0.3s;
+    cursor: pointer;
+    opacity: 0.4;
+  }
+
+  .minimap-dot.active {
+    background: var(--accent);
+    transform: scale(1.8);
+    opacity: 1;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--muted); border-radius: 2px; }
+
+  @media (max-width: 600px) {
+    .animal-entry { grid-template-columns: 1fr; }
+    .animal-meta { border-right: none; border-bottom: 1px solid var(--border); padding: 20px 0; }
+    .animal-right { padding: 20px 0; }
+    #animals { padding: 0 20px 80px; }
+    .hero-title { font-size: 52px; }
+    #minimap { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div id="progress"></div>
+<div id="cursor"></div>
+
+<!-- Hero -->
+<section id="hero">
+  <p class="hero-eyebrow">A journey through scale</p>
+  <h1 class="hero-title">Size of<br><em>Life</em></h1>
+  <p class="hero-sub">From the invisible to the immense — 25 animals at their true relative scales.</p>
+  <p class="hero-scroll">↓ scroll to explore</p>
+</section>
+
+<!-- Scale note -->
+<div id="scale-intro">
+  <span class="scale-label">Relative length scale</span>
+  <div class="scale-ruler"></div>
+  <span class="scale-label">1 mm → 30 m</span>
+</div>
+
+<!-- Animals -->
+<section id="animals"></section>
+
+<!-- End -->
+<section id="end">
+  <h2>From ant<br>to blue whale</h2>
+  <div class="big-ratio" id="ratio-counter">0×</div>
+  <p class="ratio-label">size difference</p>
+  <p>If the blue whale occupied one end of a city block, the ant would be a single grain of sand — invisible without a magnifying glass.</p>
+  <p style="margin-top:16px">The natural world spans scales that are genuinely difficult to comprehend. Yet every one of these creatures runs on the same chemistry, the same DNA, the same spark of life.</p>
+</section>
+
+<!-- Minimap -->
+<nav id="minimap"></nav>
+
+<script>
+// Cursor
+const cursor = document.getElementById('cursor');
+document.addEventListener('mousemove', e => {
+  cursor.style.left = e.clientX + 'px';
+  cursor.style.top = e.clientY + 'px';
+});
+document.addEventListener('mouseover', e => {
+  if (e.target.closest('a, button, .animal-entry')) cursor.classList.add('big');
+  else cursor.classList.remove('big');
+});
+
+// Progress
+window.addEventListener('scroll', () => {
+  const pct = window.scrollY / (document.documentElement.scrollHeight - window.innerHeight) * 100;
+  document.getElementById('progress').style.width = pct + '%';
+});
+
+// Hero particles
+const hero = document.getElementById('hero');
+for (let i = 0; i < 18; i++) {
+  const p = document.createElement('div');
+  p.className = 'particle';
+  const size = Math.random() * 3 + 1;
+  p.style.cssText = `
+    width:${size}px; height:${size}px;
+    left:${Math.random()*100}%;
+    background: ${Math.random() > 0.5 ? 'var(--accent)' : 'var(--accent2)'};
+    animation-duration: ${8 + Math.random() * 12}s;
+    animation-delay: ${Math.random() * 8}s;
+  `;
+  hero.appendChild(p);
+}
+
+// Animal data
+const groups = [
+  {
+    label: "The Tiny",
+    animals: [
+      { name:"Flea", latin:"Siphonaptera", size:"1.5 mm", mm:1.5, emoji:"🦟", color:"#8B6F5E", fact:"A flea can jump <strong>200× its own body length</strong> — the human equivalent of leaping over a 60-storey building." },
+      { name:"Ant", latin:"Formicidae", size:"2 mm", mm:2, emoji:"🐜", color:"#7A6B5E", fact:"There are an estimated <strong>20 quadrillion ants</strong> alive on Earth — more biomass than all wild birds and mammals combined." },
+      { name:"Honeybee", latin:"Apis mellifera", size:"15 mm", mm:15, emoji:"🐝", color:"#C49A3A", fact:"A single bee visits up to <strong>5,000 flowers</strong> in one day, travelling at 25 km/h." },
+      { name:"Hummingbird", latin:"Trochilidae", size:"8 cm", mm:80, emoji:"🐦", color:"#5B8A6A", fact:"A hummingbird's heart beats up to <strong>1,260 times per minute</strong> — and its wings up to 80 beats per second." },
+    ]
+  },
+  {
+    label: "Familiar Ground",
+    animals: [
+      { name:"House mouse", latin:"Mus musculus", size:"9 cm", mm:90, emoji:"🐭", color:"#A09890", fact:"A mouse's whiskers are so sensitive they can detect objects in <strong>complete darkness</strong> with millimetre accuracy." },
+      { name:"Rat", latin:"Rattus norvegicus", size:"25 cm", mm:250, emoji:"🐀", color:"#8C7B6E", fact:"Rats are highly empathetic — laboratory studies show they <strong>free trapped companions</strong> even when food is offered as a distraction." },
+      { name:"Rabbit", latin:"Oryctolagus cuniculus", size:"45 cm", mm:450, emoji:"🐇", color:"#C8B89A", fact:"A rabbit's teeth <strong>never stop growing</strong> — they wear down at the same rate from constant chewing." },
+      { name:"Cat", latin:"Felis catus", size:"46 cm", mm:460, emoji:"🐱", color:"#C89060", fact:"Cats can rotate their ears 180° and have <strong>32 ear muscles</strong> — humans have just 6." },
+      { name:"Fox", latin:"Vulpes vulpes", size:"75 cm", mm:750, emoji:"🦊", color:"#CC6633", fact:"Foxes use Earth's <strong>magnetic field</strong> to hunt — they align themselves north-east when pouncing for maximum accuracy." },
+      { name:"Dog (Labrador)", latin:"Canis lupus familiaris", size:"60 cm", mm:600, emoji:"🐕", color:"#C8A870", fact:"A dog's nose has <strong>300 million olfactory receptors</strong> — humans have 6 million. They can smell cancer, diabetes, and fear." },
+    ]
+  },
+  {
+    label: "Larger Than Us",
+    animals: [
+      { name:"Human", latin:"Homo sapiens", size:"1.7 m", mm:1700, emoji:"🧍", color:"#C87860", fact:"Humans are the <strong>only animals known to blush</strong> — a uniquely social response that even we can't fully control." },
+      { name:"Kangaroo", latin:"Macropus rufus", size:"2 m", mm:2000, emoji:"🦘", color:"#A86840", fact:"A kangaroo can travel at <strong>70 km/h</strong> and cover 9 metres in a single bound." },
+      { name:"Ostrich", latin:"Struthio camelus", size:"2.7 m", mm:2700, emoji:"🦚", color:"#9E9070", fact:"An ostrich eye is larger than its brain — and at 5 cm across, it's the <strong>biggest eye of any land animal</strong>." },
+      { name:"Cow", latin:"Bos taurus", size:"2.3 m", mm:2300, emoji:"🐄", color:"#8B7560", fact:"A cow's four-chambered stomach and daily 8 hours of chewing converts <strong>grass into 30 litres of milk</strong>." },
+      { name:"Lion", latin:"Panthera leo", size:"2.5 m", mm:2500, emoji:"🦁", color:"#C8A050", fact:"A lion's roar can be heard <strong>8 kilometres away</strong> and is used to mark territory, not to intimidate prey." },
+      { name:"Brown bear", latin:"Ursus arctos", size:"2.8 m", mm:2800, emoji:"🐻", color:"#7A5A3A", fact:"A bear's sense of smell is <strong>7× stronger than a bloodhound's</strong> — it can detect food from 30 km away." },
+    ]
+  },
+  {
+    label: "Giants of the Land",
+    animals: [
+      { name:"Moose", latin:"Alces alces", size:"3 m", mm:3000, emoji:"🦌", color:"#7A6850", fact:"A moose can run at <strong>55 km/h</strong> and is an excellent swimmer — they've been spotted 20 km offshore." },
+      { name:"Giraffe", latin:"Giraffa camelopardalis", size:"5.5 m", mm:5500, emoji:"🦒", color:"#C49A3A", fact:"A giraffe's 1.8 m neck contains just <strong>7 vertebrae</strong> — the same number as a human's." },
+      { name:"Hippopotamus", latin:"Hippopotamus amphibius", size:"5 m", mm:5000, emoji:"🦛", color:"#80908A", fact:"Hippos secrete a natural <strong>red 'sunscreen'</strong> that also acts as an antibiotic — they manufacture their own SPF." },
+      { name:"White rhino", latin:"Ceratotherium simum", size:"4 m", mm:4000, emoji:"🦏", color:"#9A9088", fact:"A rhino horn is made of <strong>compacted keratin</strong> — the same protein as human fingernails." },
+      { name:"African elephant", latin:"Loxodonta africana", size:"7 m", mm:7000, emoji:"🐘", color:"#9CA0A8", fact:"Elephants are the only non-human animals known to have <strong>death rituals</strong> — they revisit the bones of their dead for years." },
+    ]
+  },
+  {
+    label: "Lords of the Ocean",
+    animals: [
+      { name:"Great white shark", latin:"Carcharodon carcharias", size:"6 m", mm:6000, emoji:"🦈", color:"#5B7A9E", fact:"A great white shark can detect a <strong>single drop of blood</strong> in 100 litres of water from 5 km away." },
+      { name:"Orca", latin:"Orcinus orca", size:"9 m", mm:9000, emoji:"🐬", color:"#3A5A7A", fact:"Orca pods have distinct <strong>cultural dialects</strong> — groups separated by hundreds of miles speak differently." },
+      { name:"Sperm whale", latin:"Physeter macrocephalus", size:"18 m", mm:18000, emoji:"🐳", color:"#4A6888", fact:"The sperm whale has the <strong>largest brain ever recorded</strong> — 8 kg — and can dive to 3,000 metres." },
+      { name:"Blue whale", latin:"Balaenoptera musculus", size:"30 m", mm:30000, emoji:"🐋", color:"#3B6FA0", fact:"A blue whale's heart is the size of a small car. Its tongue alone weighs as much as an entire elephant." },
+    ]
+  }
+];
+
+const maxMM = 30000;
+const maxBarW = 520;
+
+const animalsSection = document.getElementById('animals');
+const minimap = document.getElementById('minimap');
+const allEntries = [];
+let animalIndex = 0;
+
+groups.forEach((group, gi) => {
+  // Group header
+  const gh = document.createElement('div');
+  gh.className = 'group-header';
+  gh.innerHTML = `<span class="group-header-label">${group.label}</span><div class="group-header-line"></div>`;
+  animalsSection.appendChild(gh);
+
+  group.animals.forEach((a, ai) => {
+    animalIndex++;
+    const barW = Math.max(3, Math.round((a.mm / maxMM) * maxBarW));
+    const hue = `${a.color}`;
+    const lightColor = a.color + 'aa';
+
+    const entry = document.createElement('div');
+    entry.className = 'animal-entry';
+    entry.dataset.index = animalIndex;
+
+    entry.innerHTML = `
+      <div class="animal-bg-text">${a.emoji}</div>
+      <div class="animal-meta">
+        <span class="animal-number">${String(animalIndex).padStart(2,'0')}</span>
+        <div class="animal-name">${a.name}</div>
+        <div class="animal-latin">${a.latin}</div>
+        <span class="animal-size-tag" style="color:${a.color};border-color:${a.color}66">${a.size}</span>
+      </div>
+      <div class="animal-right">
+        <div class="bar-container">
+          <div class="bar-fill" style="width:${barW}px; background:${a.color}; opacity:0.85;"></div>
+          <div class="bar-emoji">${a.emoji}</div>
+        </div>
+        <div class="animal-fact">${a.fact}</div>
+      </div>
+    `;
+
+    animalsSection.appendChild(entry);
+    allEntries.push(entry);
+
+    // Minimap dot
+    const dot = document.createElement('div');
+    dot.className = 'minimap-dot';
+    dot.title = a.name;
+    dot.addEventListener('click', () => entry.scrollIntoView({ behavior:'smooth', block:'center' }));
+    minimap.appendChild(dot);
+  });
+
+  // Comparison note after first and third groups
+  if (gi === 0) {
+    const note = document.createElement('div');
+    note.className = 'comparison-note';
+    note.innerHTML = `A flea lined up against a honeybee: the bee is <strong>10× longer</strong>. That same ratio — applied again — gives you a rabbit.`;
+    animalsSection.appendChild(note);
+    allEntries.push(note);
+  }
+  if (gi === 2) {
+    const note = document.createElement('div');
+    note.className = 'comparison-note';
+    note.innerHTML = `A human standing next to a giraffe reaches roughly its <strong>shoulder height</strong>. We only see eye-to-eye with the neck.`;
+    animalsSection.appendChild(note);
+    allEntries.push(note);
+  }
+});
+
+// Intersection Observer for scroll animations
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.classList.add('visible');
+      // Update minimap
+      const idx = parseInt(entry.target.dataset.index) - 1;
+      if (!isNaN(idx)) {
+        document.querySelectorAll('.minimap-dot').forEach((d, i) => {
+          d.classList.toggle('active', i === idx);
+        });
+      }
+    }
+  });
+}, { threshold: 0.2 });
+
+allEntries.forEach(e => observer.observe(e));
+
+// Ratio counter animation
+const ratioEl = document.getElementById('ratio-counter');
+const ratioObserver = new IntersectionObserver(entries => {
+  if (entries[0].isIntersecting) {
+    let start = 0;
+    const target = 20000;
+    const step = () => {
+      start += Math.ceil((target - start) / 12);
+      ratioEl.textContent = start.toLocaleString() + '×';
+      if (start < target) requestAnimationFrame(step);
+      else ratioEl.textContent = '20,000×';
+    };
+    requestAnimationFrame(step);
+    ratioObserver.disconnect();
+  }
+}, { threshold: 0.5 });
+ratioObserver.observe(ratioEl);
+
+// Stagger animal entry delays
+document.querySelectorAll('.animal-entry').forEach((el, i) => {
+  el.style.transitionDelay = `${(i % 4) * 0.05}s`;
+});
+</script>
+</body>
+</html>
