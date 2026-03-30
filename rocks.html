@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ROCK STACK • neal.fun style</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+        
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #111;
+            color: #fff;
+            font-family: 'Press Start 2P', system-ui;
+            touch-action: none;
+        }
+        
+        canvas {
+            display: block;
+        }
+        
+        #ui {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            pointer-events: none;
+            z-index: 10;
+        }
+        
+        #title {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 28px;
+            text-shadow: 4px 4px 0 #000;
+            pointer-events: none;
+        }
+        
+        #score {
+            position: absolute;
+            top: 70px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 18px;
+            background: rgba(0,0,0,0.6);
+            padding: 8px 20px;
+            border: 4px solid #fff;
+        }
+        
+        #instructions {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.7);
+            padding: 12px 24px;
+            font-size: 14px;
+            text-align: center;
+            border: 3px solid #fff;
+            max-width: 80%;
+        }
+        
+        button {
+            position: absolute;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 12px 30px;
+            font-family: 'Press Start 2P';
+            font-size: 16px;
+            background: #222;
+            color: #0f0;
+            border: 4px solid #0f0;
+            cursor: pointer;
+            pointer-events: all;
+        }
+        
+        button:hover {
+            background: #0f0;
+            color: #000;
+        }
+        
+        .rock {
+            filter: drop-shadow(0 0 10px #fff);
+        }
+    </style>
+</head>
+<body>
+    <div id="ui">
+        <div id="title">ROCK STACK</div>
+        <div id="score">HEIGHT: 0</div>
+        <button onclick="resetGame()">NEW STACK</button>
+        <div id="instructions">
+            ← DRAG TO AIM • CLICK / TAP TO DROP →<br>
+            DON'T LET IT FALL!
+        </div>
+    </div>
+
+    <script>
+        // Three.js setup
+        let scene, camera, renderer;
+        let rocks = [];
+        let currentRock = null;
+        let isDragging = false;
+        let mouse = { x: 0, y: 0 };
+        let score = 0;
+        let gameOver = false;
+
+        const GROUND_Y = -2;
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.fog = new THREE.Fog(0x111111, 15, 40);
+
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
+            camera.position.set(0, 8, 18);
+            camera.lookAt(0, 4, 0);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            document.body.appendChild(renderer.domElement);
+
+            // Lights
+            const ambient = new THREE.AmbientLight(0xaaaaaa, 0.6);
+            scene.add(ambient);
+            
+            const sun = new THREE.DirectionalLight(0xffeecc, 1.2);
+            sun.position.set(10, 20, 10);
+            sun.castShadow = true;
+            sun.shadow.mapSize.width = 2048;
+            sun.shadow.mapSize.height = 2048;
+            scene.add(sun);
+
+            // Ground
+            const groundGeo = new THREE.PlaneGeometry(50, 50);
+            const groundMat = new THREE.MeshLambertMaterial({ 
+                color: 0x223322,
+                flatShading: true
+            });
+            const ground = new THREE.Mesh(groundGeo, groundMat);
+            ground.rotation.x = -Math.PI / 2;
+            ground.position.y = GROUND_Y;
+            ground.receiveShadow = true;
+            scene.add(ground);
+
+            // Add some base rocks
+            createRock(0, GROUND_Y + 1.2, 0, 2.2, 0x666666);
+            createRock(0.8, GROUND_Y + 2.4, -0.5, 1.8, 0x555555);
+
+            window.addEventListener('resize', onResize);
+            renderer.domElement.addEventListener('pointerdown', onPointerDown);
+            renderer.domElement.addEventListener('pointermove', onPointerMove);
+            renderer.domElement.addEventListener('pointerup', onPointerUp);
+            renderer.domElement.addEventListener('mouseleave', () => isDragging = false);
+
+            // Spawn first rock
+            spawnNewRock();
+            animate();
+        }
+
+        function createRock(x, y, z, size = 1.5, color = 0x777777) {
+            // Icosahedron + random displacement for rocky look
+            const geometry = new THREE.IcosahedronGeometry(size, 1);
+            
+            // Displace vertices for roughness
+            const positionAttribute = geometry.attributes.position;
+            for (let i = 0; i < positionAttribute.count; i++) {
+                const vx = positionAttribute.getX(i);
+                const vy = positionAttribute.getY(i);
+                const vz = positionAttribute.getZ(i);
+                
+                const noise = Math.random() * 0.3 + 0.1;
+                positionAttribute.setXYZ(
+                    i,
+                    vx + (vx * noise),
+                    vy + (vy * noise),
+                    vz + (vz * noise)
+                );
+            }
+            geometry.computeVertexNormals();
+            
+            const material = new THREE.MeshLambertMaterial({
+                color: color,
+                flatShading: true,
+                roughness: 1
+            });
+            
+            const rock = new THREE.Mesh(geometry, material);
+            rock.position.set(x, y, z);
+            rock.castShadow = true;
+            rock.receiveShadow = true;
+            rock.userData = { size: size };
+            
+            // Slight random rotation
+            rock.rotation.set(
+                Math.random() * 0.4 - 0.2,
+                Math.random() * Math.PI * 2,
+                Math.random() * 0.4 - 0.2
+            );
+            
+            scene.add(rock);
+            return rock;
+        }
+
+        function spawnNewRock() {
+            if (currentRock) return;
+            
+            const spawnX = (Math.random() - 0.5) * 6;
+            currentRock = createRock(spawnX, 15, (Math.random() - 0.5) * 4, 1.6);
+            currentRock.userData.isPreview = true;
+            currentRock.material.transparent = true;
+            currentRock.material.opacity = 0.6;
+        }
+
+        function dropRock() {
+            if (!currentRock || gameOver) return;
+            
+            currentRock.userData.isPreview = false;
+            currentRock.material.transparent = false;
+            currentRock.material.opacity = 1;
+            
+            // Find top of stack
+            let maxY = GROUND_Y + 2;
+            let topRock = null;
+            
+            rocks.forEach(r => {
+                const top = r.position.y + r.userData.size * 0.9;
+                if (top > maxY) {
+                    maxY = top;
+                    topRock = r;
+                }
+            });
+            
+            // Drop animation with simple physics
+            const targetY = maxY + currentRock.userData.size * 0.9 + 0.2;
+            
+            // Check if it will balance (simple stability check)
+            const distFromCenter = Math.sqrt(
+                Math.pow(currentRock.position.x, 2) + 
+                Math.pow(currentRock.position.z, 2)
+            );
+            
+            const stability = Math.max(0, 1 - distFromCenter / 5);
+            
+            // Add to stack
+            rocks.push(currentRock);
+            currentRock = null;
+            
+            // Animate drop
+            let dropY = 15;
+            const dropInterval = setInterval(() => {
+                dropY -= 1.8;
+                currentRock ? null : (rocks[rocks.length-1].position.y = Math.max(targetY, dropY));
+                
+                if (dropY <= targetY) {
+                    clearInterval(dropInterval);
+                    rocks[rocks.length-1].position.y = targetY;
+                    
+                    // Check stability
+                    if (Math.random() > stability * 0.85) {
+                        setTimeout(() => {
+                            if (rocks.length > 3) {
+                                alert("💥 YOUR TOWER COLLAPSED!\nFinal height: " + rocks.length);
+                                resetGame();
+                            }
+                        }, 400);
+                    } else {
+                        score = rocks.length;
+                        document.getElementById('score').textContent = `HEIGHT: ${score}`;
+                        spawnNewRock();
+                    }
+                }
+            }, 16);
+        }
+
+        function onPointerDown(e) {
+            if (gameOver) return;
+            isDragging = true;
+            
+            if (currentRock) {
+                // Drop on tap/click
+                const rect = renderer.domElement.getBoundingClientRect();
+                mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+                mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+                
+                dropRock();
+            }
+        }
+
+        function onPointerMove(e) {
+            if (!isDragging || !currentRock) return;
+            
+            const rect = renderer.domElement.getBoundingClientRect();
+            mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+            
+            // Raycast to plane at y = 12
+            const raycaster = new THREE.Raycaster();
+            raycaster.setFromCamera(mouse, camera);
+            
+            const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -12);
+            const intersect = new THREE.Vector3();
+            raycaster.ray.intersectPlane(plane, intersect);
+            
+            if (intersect) {
+                currentRock.position.x = Math.max(-8, Math.min(8, intersect.x));
+                currentRock.position.z = Math.max(-8, Math.min(8, intersect.z));
+            }
+        }
+
+        function onPointerUp() {
+            isDragging = false;
+        }
+
+        function onResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // Gentle camera bob
+            camera.position.y = 8 + Math.sin(Date.now() / 2000) * 0.3;
+            
+            // Rotate preview rock
+            if (currentRock && currentRock.userData.isPreview) {
+                currentRock.rotation.y += 0.008;
+            }
+            
+            renderer.render(scene, camera);
+        }
+
+        function resetGame() {
+            // Remove all rocks
+            rocks.forEach(r => scene.remove(r));
+            rocks = [];
+            
+            if (currentRock) {
+                scene.remove(currentRock);
+                currentRock = null;
+            }
+            
+            score = 0;
+            gameOver = false;
+            document.getElementById('score').textContent = `HEIGHT: 0`;
+            
+            // Re-add base
+            createRock(0, GROUND_Y + 1.2, 0, 2.2, 0x666666);
+            createRock(0.8, GROUND_Y + 2.4, -0.5, 1.8, 0x555555);
+            
+            spawnNewRock();
+        }
+
+        // Start the game
+        init();
+    </script>
+</body>
+</html>

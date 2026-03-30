@@ -1,0 +1,1107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mystery Auction House</title>
+    <link href="https://fonts.googleapis.com/css2?family=Righteous&family=Quicksand:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #1a0a2e;
+            --secondary: #ff2d75;
+            --accent: #00f5ff;
+            --success: #39ff14;
+            --warning: #ffb300;
+            --text: #ffffff;
+            --text-soft: #ffb8d1;
+            --card-bg: rgba(255, 255, 255, 0.05);
+            --glow-pink: 0 0 20px rgba(255, 45, 117, 0.6);
+            --glow-cyan: 0 0 20px rgba(0, 245, 255, 0.6);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Quicksand', sans-serif;
+            background: var(--primary);
+            min-height: 100vh;
+            color: var(--text);
+            overflow-x: hidden;
+        }
+
+        /* Animated Background */
+        .bg-particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: var(--accent);
+            border-radius: 50%;
+            animation: float 15s infinite ease-in-out;
+            opacity: 0.6;
+        }
+
+        .particle:nth-child(odd) {
+            background: var(--secondary);
+            animation-duration: 20s;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(100vh) rotate(0deg); opacity: 0; }
+            10% { opacity: 0.6; }
+            90% { opacity: 0.6; }
+            100% { transform: translateY(-100vh) rotate(720deg); opacity: 0; }
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Header */
+        header {
+            text-align: center;
+            padding: 30px 0;
+        }
+
+        h1 {
+            font-family: 'Righteous', cursive;
+            font-size: clamp(2rem, 6vw, 4rem);
+            background: linear-gradient(135deg, var(--secondary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: none;
+            filter: drop-shadow(0 0 30px rgba(255, 45, 117, 0.5));
+            animation: titleGlow 3s ease-in-out infinite alternate;
+        }
+
+        @keyframes titleGlow {
+            from { filter: drop-shadow(0 0 30px rgba(255, 45, 117, 0.5)); }
+            to { filter: drop-shadow(0 0 50px rgba(0, 245, 255, 0.5)); }
+        }
+
+        .budget-display {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 15px;
+            padding: 12px 25px;
+            background: var(--card-bg);
+            border-radius: 50px;
+            border: 2px solid var(--accent);
+            box-shadow: var(--glow-cyan);
+            font-size: 1.2rem;
+            font-weight: 700;
+        }
+
+        .budget-display span {
+            color: var(--success);
+        }
+
+        /* Main Game Area */
+        .game-area {
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 30px;
+            margin-top: 20px;
+        }
+
+        @media (max-width: 900px) {
+            .game-area {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Auction Stage */
+        .auction-stage {
+            background: linear-gradient(145deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02));
+            border-radius: 30px;
+            padding: 40px;
+            border: 1px solid rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .item-display {
+            text-align: center;
+            position: relative;
+        }
+
+        .item-image {
+            width: 200px;
+            height: 200px;
+            margin: 0 auto 20px;
+            background: linear-gradient(135deg, var(--secondary), var(--accent));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 80px;
+            box-shadow: 0 0 60px rgba(255, 45, 117, 0.4);
+            animation: itemFloat 4s ease-in-out infinite;
+            position: relative;
+        }
+
+        .item-image::before {
+            content: '';
+            position: absolute;
+            inset: -10px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--secondary), var(--accent));
+            filter: blur(20px);
+            z-index: -1;
+            opacity: 0.5;
+        }
+
+        @keyframes itemFloat {
+            0%, 100% { transform: translateY(0) scale(1); }
+            50% { transform: translateY(-10px) scale(1.02); }
+        }
+
+        .item-name {
+            font-family: 'Righteous', cursive;
+            font-size: 2rem;
+            color: var(--text);
+            margin-bottom: 10px;
+        }
+
+        .item-description {
+            color: var(--text-soft);
+            font-size: 1rem;
+            margin-bottom: 30px;
+            font-style: italic;
+        }
+
+        /* Current Bid Display */
+        .bid-display {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 25px;
+            margin: 20px 0;
+            border: 2px solid var(--secondary);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .bid-display::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(90deg, transparent, rgba(255,45,117,0.1), transparent);
+            animation: shimmer 2s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .bid-label {
+            font-size: 0.9rem;
+            color: var(--text-soft);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .current-bid {
+            font-family: 'Righteous', cursive;
+            font-size: 3rem;
+            color: var(--success);
+            text-shadow: 0 0 20px rgba(57, 255, 20, 0.5);
+            transition: transform 0.2s;
+        }
+
+        .current-bid.pulse {
+            animation: bidPulse 0.5s ease-out;
+        }
+
+        @keyframes bidPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        .current-bid.shake {
+            animation: bidShake 0.5s ease-out;
+        }
+
+        @keyframes bidShake {
+            0%, 100% { transform: translateX(0); }
+            20% { transform: translateX(-10px); }
+            40% { transform: translateX(10px); }
+            60% { transform: translateX(-10px); }
+            80% { transform: translateX(10px); }
+        }
+
+        .bidder-name {
+            color: var(--accent);
+            font-size: 0.9rem;
+            margin-top: 5px;
+        }
+
+        /* Timer */
+        .timer-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .timer {
+            font-family: 'Righteous', cursive;
+            font-size: 2.5rem;
+            color: var(--warning);
+            text-shadow: 0 0 20px rgba(255, 179, 0, 0.5);
+            transition: color 0.3s;
+        }
+
+        .timer.urgent {
+            color: var(--secondary);
+            animation: timerPulse 0.5s infinite;
+        }
+
+        @keyframes timerPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .timer-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .timer-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent), var(--success));
+            border-radius: 10px;
+            transition: width 0.1s linear, background 0.3s;
+        }
+
+        .timer-fill.urgent {
+            background: linear-gradient(90deg, var(--warning), var(--secondary));
+        }
+
+        /* Bid Buttons */
+        .bid-controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .bid-btn {
+            font-family: 'Quicksand', sans-serif;
+            font-weight: 700;
+            font-size: 1.1rem;
+            padding: 18px 20px;
+            border: none;
+            border-radius: 15px;
+            cursor: pointer;
+            background: linear-gradient(135deg, rgba(255,45,117,0.2), rgba(0,245,255,0.2));
+            color: var(--text);
+            border: 2px solid var(--secondary);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .bid-btn::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, var(--secondary), var(--accent));
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .bid-btn:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 10px 30px rgba(255, 45, 117, 0.4);
+            border-color: var(--accent);
+        }
+
+        .bid-btn:hover::before {
+            opacity: 0.15;
+        }
+
+        .bid-btn:active {
+            transform: translateY(0) scale(0.98);
+        }
+
+        .bid-btn.disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .bid-btn.disabled:hover {
+            box-shadow: none;
+            border-color: var(--secondary);
+        }
+
+        .custom-bid {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .custom-bid input {
+            flex: 1;
+            padding: 15px 20px;
+            border: 2px solid rgba(255,255,255,0.2);
+            border-radius: 15px;
+            background: rgba(255,255,255,0.05);
+            color: var(--text);
+            font-family: 'Quicksand', sans-serif;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .custom-bid input:focus {
+            border-color: var(--accent);
+        }
+
+        .custom-bid input::placeholder {
+            color: rgba(255,255,255,0.3);
+        }
+
+        .custom-bid button {
+            padding: 15px 25px;
+            background: linear-gradient(135deg, var(--accent), var(--success));
+            border: none;
+            border-radius: 15px;
+            color: var(--primary);
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .custom-bid button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 20px rgba(0, 245, 255, 0.4);
+        }
+
+        /* Sidebar */
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .panel {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 20px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .panel-title {
+            font-family: 'Righteous', cursive;
+            font-size: 1.2rem;
+            color: var(--accent);
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .panel-title::before {
+            content: '★';
+            color: var(--secondary);
+        }
+
+        /* Leaderboard */
+        .leaderboard {
+            list-style: none;
+        }
+
+        .leaderboard li {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            transition: background 0.3s;
+        }
+
+        .leaderboard li:last-child {
+            border-bottom: none;
+        }
+
+        .leaderboard li.player {
+            background: rgba(0, 245, 255, 0.1);
+            margin: 0 -10px;
+            padding: 12px 10px;
+            border-radius: 10px;
+            border: 1px solid var(--accent);
+        }
+
+        .bidder-name-list {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .bidder-avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--secondary), var(--accent));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+        }
+
+        .bidder-amount {
+            color: var(--success);
+            font-weight: 700;
+        }
+
+        /* Stats */
+        .stats-grid {
+            display: grid;
+            gap: 15px;
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .stat-label {
+            color: var(--text-soft);
+        }
+
+        .stat-value {
+            font-family: 'Righteous', cursive;
+            font-size: 1.3rem;
+            color: var(--accent);
+        }
+
+        .stat-value.wins {
+            color: var(--success);
+        }
+
+        /* Notifications */
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 20px 30px;
+            background: linear-gradient(135deg, var(--secondary), var(--primary));
+            border-radius: 15px;
+            border: 2px solid var(--accent);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            transform: translateX(150%);
+            transition: transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            z-index: 100;
+            max-width: 350px;
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+
+        .notification.success {
+            border-color: var(--success);
+        }
+
+        .notification.error {
+            border-color: var(--secondary);
+        }
+
+        .notification-title {
+            font-family: 'Righteous', cursive;
+            font-size: 1.2rem;
+            margin-bottom: 5px;
+        }
+
+        .notification-message {
+            font-size: 0.9rem;
+            color: var(--text-soft);
+        }
+
+        /* Confetti */
+        .confetti-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1000;
+            overflow: hidden;
+        }
+
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            top: -20px;
+            animation: confettiFall 4s linear forwards;
+        }
+
+        @keyframes confettiFall {
+            0% {
+                transform: translateY(0) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(100vh) rotate(720deg);
+                opacity: 0;
+            }
+        }
+
+        /* Win Modal */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+        }
+
+        .modal-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal {
+            background: linear-gradient(145deg, #2a1a4a, #1a0a2e);
+            border-radius: 30px;
+            padding: 50px;
+            text-align: center;
+            border: 2px solid var(--success);
+            box-shadow: 0 0 60px rgba(57, 255, 20, 0.3);
+            transform: scale(0.8);
+            transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            max-width: 400px;
+        }
+
+        .modal-overlay.show .modal {
+            transform: scale(1);
+        }
+
+        .modal-icon {
+            font-size: 80px;
+            margin-bottom: 20px;
+            animation: bounce 1s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+
+        .modal h2 {
+            font-family: 'Righteous', cursive;
+            font-size: 2.5rem;
+            color: var(--success);
+            margin-bottom: 10px;
+        }
+
+        .modal p {
+            color: var(--text-soft);
+            margin-bottom: 20px;
+        }
+
+        .modal-btn {
+            padding: 15px 40px;
+            background: linear-gradient(135deg, var(--success), var(--accent));
+            border: none;
+            border-radius: 50px;
+            color: var(--primary);
+            font-family: 'Righteous', cursive;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .modal-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 10px 30px rgba(57, 255, 20, 0.4);
+        }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            .auction-stage {
+                padding: 20px;
+            }
+
+            .item-image {
+                width: 150px;
+                height: 150px;
+                font-size: 60px;
+            }
+
+            .current-bid {
+                font-size: 2rem;
+            }
+
+            .bid-controls {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .bid-btn {
+                padding: 15px;
+                font-size: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Background Particles -->
+    <div class="bg-particles" id="particles"></div>
+
+    <div class="container">
+        <header>
+            <h1>🔮 Mystery Auction House</h1>
+            <div class="budget-display">
+                💰 Your Budget: <span id="playerBudget">$5,000</span>
+            </div>
+        </header>
+
+        <div class="game-area">
+            <!-- Auction Stage -->
+            <div class="auction-stage">
+                <div class="item-display">
+                    <div class="item-image" id="itemIcon">🎁</div>
+                    <h2 class="item-name" id="itemName">Mystery Box</h2>
+                    <p class="item-description" id="itemDescription">What's inside? Only the auction gods know!</p>
+                </div>
+
+                <!-- Current Bid -->
+                <div class="bid-display">
+                    <div class="bid-label">Current Bid</div>
+                    <div class="current-bid" id="currentBid">$100</div>
+                    <div class="bidder-name">by <span id="bidderName">MysteryBidder42</span></div>
+                </div>
+
+                <!-- Timer -->
+                <div class="timer-container">
+                    <div class="timer" id="timer">15</div>
+                    <div class="timer-bar">
+                        <div class="timer-fill" id="timerFill"></div>
+                    </div>
+                </div>
+
+                <!-- Bid Controls -->
+                <div class="bid-controls">
+                    <button class="bid-btn" data-amount="10">+$10</button>
+                    <button class="bid-btn" data-amount="25">+$25</button>
+                    <button class="bid-btn" data-amount="50">+$50</button>
+                    <button class="bid-btn" data-amount="100">+$100</button>
+                    <button class="bid-btn" data-amount="500">+$500</button>
+                </div>
+
+                <div class="custom-bid">
+                    <input type="number" id="customBidInput" placeholder="Custom amount...">
+                    <button id="customBidBtn">Bid</button>
+                </div>
+            </div>
+
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <!-- Leaderboard -->
+                <div class="panel">
+                    <h3 class="panel-title">Top Bidders</h3>
+                    <ul class="leaderboard" id="leaderboard">
+                        <li>
+                            <span class="bidder-name-list">
+                                <span class="bidder-avatar">🤖</span>
+                                AI_Bot_3000
+                            </span>
+                            <span class="bidder-amount">$100</span>
+                        </li>
+                        <li>
+                            <span class="bidder-name-list">
+                                <span class="bidder-avatar">👻</span>
+                                SpookyBidder
+                            </span>
+                            <span class="bidder-amount">$75</span>
+                        </li>
+                        <li>
+                            <span class="bidder-name-list">
+                                <span class="bidder-avatar">🦊</span>
+                                FoxQueen
+                            </span>
+                            <span class="bidder-amount">$50</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Stats -->
+                <div class="panel">
+                    <h3 class="panel-title">Your Stats</h3>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <span class="stat-label">🏆 Items Won</span>
+                            <span class="stat-value wins" id="itemsWon">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">💸 Total Spent</span>
+                            <span class="stat-value" id="totalSpent">$0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">🔥 Current Streak</span>
+                            <span class="stat-value" id="currentStreak">0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification -->
+    <div class="notification" id="notification">
+        <div class="notification-title" id="notificationTitle">Success!</div>
+        <div class="notification-message" id="notificationMessage">Your bid was placed!</div>
+    </div>
+
+    <!-- Confetti Container -->
+    <div class="confetti-container" id="confettiContainer"></div>
+
+    <!-- Win Modal -->
+    <div class="modal-overlay" id="winModal">
+        <div class="modal">
+            <div class="modal-icon">🎉</div>
+            <h2>You Won!</h2>
+            <p id="winMessage">You won the Mystery Box for $150!</p>
+            <button class="modal-btn" id="nextItemBtn">Next Auction →</button>
+        </div>
+    </div>
+
+    <script>
+        // Game State
+        const gameState = {
+            playerBudget: 5000,
+            currentBid: 100,
+            currentBidder: 'MysteryBidder42',
+            timeRemaining: 15,
+            timerInterval: null,
+            itemsWon: 0,
+            totalSpent: 0,
+            currentStreak: 0,
+            isPlayerBidding: false
+        };
+
+        // Auction Items
+        const auctionItems = [
+            { icon: '🎁', name: 'Mystery Box', description: 'What\'s inside? Only the auction gods know!' },
+            { icon: '💎', name: 'Cosmic Gem', description: 'A gem from a distant galaxy, rumored to grant wishes.' },
+            { icon: '🗝️', name: 'Ancient Key', description: 'Opens doors to places that don\'t exist yet.' },
+            { icon: '🔮', name: 'Crystal Ball', description: 'See your future, but beware of what you might see...' },
+            { icon: '🏺', name: 'Magic Urn', description: 'Contains the essence of a thousand forgotten dreams.' },
+            { icon: '🎭', name: 'Enchanted Mask', description: 'Wear it to become anyone you want to be.' },
+            { icon: '🧪', name: 'Potion of Infinity', description: 'One sip extends your day by 25 hours.' },
+            { icon: '📜', name: 'Spell Scroll', description: 'Contains a spell that\'s never been cast before.' },
+            { icon: '🦄', name: 'Rainbow Feather', description: 'From the last unicorn born under a blue moon.' },
+            { icon: '🌙', name: 'Moonstone', description: 'Glows brighter on nights when secrets are told.' }
+        ];
+
+        // AI Bidders
+        const aiBidders = [
+            { name: 'AI_Bot_3000', avatar: '🤖' },
+            { name: 'SpookyBidder', avatar: '👻' },
+            { name: 'FoxQueen', avatar: '🦊' },
+            { name: 'CryptoKing', avatar: '👑' },
+            { name: 'NeonRacer', avatar: '🏎️' },
+            { name: 'PixelWizard', avatar: '🧙' },
+            { name: 'GlitchMaster', avatar: '🎮' },
+            { name: 'StarGazer', avatar: '⭐' }
+        ];
+
+        let currentItemIndex = 0;
+
+        // DOM Elements
+        const elements = {
+            playerBudget: document.getElementById('playerBudget'),
+            itemIcon: document.getElementById('itemIcon'),
+            itemName: document.getElementById('itemName'),
+            itemDescription: document.getElementById('itemDescription'),
+            currentBid: document.getElementById('currentBid'),
+            bidderName: document.getElementById('bidderName'),
+            timer: document.getElementById('timer'),
+            timerFill: document.getElementById('timerFill'),
+            leaderboard: document.getElementById('leaderboard'),
+            itemsWon: document.getElementById('itemsWon'),
+            totalSpent: document.getElementById('totalSpent'),
+            currentStreak: document.getElementById('currentStreak'),
+            notification: document.getElementById('notification'),
+            notificationTitle: document.getElementById('notificationTitle'),
+            notificationMessage: document.getElementById('notificationMessage'),
+            confettiContainer: document.getElementById('confettiContainer'),
+            winModal: document.getElementById('winModal'),
+            winMessage: document.getElementById('winMessage'),
+            nextItemBtn: document.getElementById('nextItemBtn'),
+            customBidInput: document.getElementById('customBidInput'),
+            customBidBtn: document.getElementById('customBidBtn')
+        };
+
+        // Initialize background particles
+        function createParticles() {
+            const container = document.getElementById('particles');
+            for (let i = 0; i < 50; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.animationDelay = Math.random() * 15 + 's';
+                particle.style.animationDuration = (15 + Math.random() * 10) + 's';
+                container.appendChild(particle);
+            }
+        }
+
+        // Show notification
+        function showNotification(title, message, type = 'success') {
+            elements.notificationTitle.textContent = title;
+            elements.notificationMessage.textContent = message;
+            elements.notification.className = `notification ${type} show`;
+            setTimeout(() => {
+                elements.notification.classList.remove('show');
+            }, 3000);
+        }
+
+        // Update bid display with animation
+        function updateBid(amount, bidder) {
+            gameState.currentBid = amount;
+            gameState.currentBidder = bidder;
+            elements.currentBid.textContent = '$' + amount;
+            elements.bidderName.textContent = bidder;
+            elements.currentBid.classList.add('pulse');
+            setTimeout(() => elements.currentBid.classList.remove('pulse'), 500);
+            updateLeaderboard();
+            updateBidButtons();
+        }
+
+        // Place bid
+        function placeBid(amount) {
+            if (amount <= gameState.currentBid) {
+                elements.currentBid.classList.add('shake');
+                setTimeout(() => elements.currentBid.classList.remove('shake'), 500);
+                showNotification('Bid Too Low!', `Bid must be higher than $${gameState.currentBid}`, 'error');
+                return false;
+            }
+
+            if (amount > gameState.playerBudget) {
+                showNotification('Insufficient Funds!', 'You don\'t have enough budget for this bid.', 'error');
+                return false;
+            }
+
+            updateBid(amount, 'YOU');
+            gameState.playerBudget -= amount;
+            gameState.isPlayerBidding = true;
+            elements.playerBudget.textContent = '$' + gameState.playerBudget;
+            showNotification('Bid Placed!', `You bid $${amount}!`, 'success');
+            
+            // Extend timer slightly on player bid
+            gameState.timeRemaining = Math.min(gameState.timeRemaining + 3, 15);
+            
+            return true;
+        }
+
+        // Update bid buttons state
+        function updateBidButtons() {
+            document.querySelectorAll('.bid-btn').forEach(btn => {
+                const amount = parseInt(btn.dataset.amount) + gameState.currentBid;
+                btn.classList.toggle('disabled', amount > gameState.playerBudget);
+            });
+        }
+
+        // Update leaderboard
+        function updateLeaderboard() {
+            const bids = [
+                { name: gameState.currentBidder, amount: gameState.currentBid, isPlayer: gameState.currentBidder === 'YOU' }
+            ];
+
+            // Add some fake previous bids
+            const fakeBids = [
+                { name: 'AI_Bot_3000', avatar: '🤖', amount: Math.max(gameState.currentBid - 10, 50), isPlayer: false },
+                { name: 'SpookyBidder', avatar: '👻', amount: Math.max(gameState.currentBid - 30, 25), isPlayer: false },
+                { name: 'FoxQueen', avatar: '🦊', amount: Math.max(gameState.currentBid - 50, 10), isPlayer: false }
+            ];
+
+            const allBids = [...bids, ...fakeBids].sort((a, b) => b.amount - a.amount);
+
+            elements.leaderboard.innerHTML = allBids.slice(0, 4).map(bid => `
+                <li class="${bid.isPlayer ? 'player' : ''}">
+                    <span class="bidder-name-list">
+                        <span class="bidder-avatar">${bid.isPlayer ? '👤' : fakeBids.find(f => f.name === bid.name)?.avatar || '👤'}</span>
+                        ${bid.name}
+                    </span>
+                    <span class="bidder-amount">$${bid.amount}</span>
+                </li>
+            `).join('');
+        }
+
+        // AI Bidding
+        function aiBid() {
+            if (Math.random() > 0.4) return; // AI doesn't always bid
+
+            const ai = aiBidders[Math.floor(Math.random() * aiBidders.length)];
+            const extraAmount = [10, 25, 50, 100][Math.floor(Math.random() * 4)];
+            const newBid = gameState.currentBid + extraAmount;
+
+            if (newBid <= 5000) { // AI has budget limit
+                updateBid(newBid, ai.name);
+                gameState.isPlayerBidding = false;
+            }
+        }
+
+        // Timer
+        function startTimer() {
+            gameState.timeRemaining = 15;
+            elements.timer.textContent = '15';
+            elements.timerFill.style.width = '100%';
+            elements.timer.classList.remove('urgent');
+            elements.timerFill.classList.remove('urgent');
+
+            gameState.timerInterval = setInterval(() => {
+                gameState.timeRemaining -= 0.1;
+                elements.timer.textContent = Math.ceil(gameState.timeRemaining);
+                elements.timerFill.style.width = (gameState.timeRemaining / 15 * 100) + '%';
+
+                if (gameState.timeRemaining <= 5) {
+                    elements.timer.classList.add('urgent');
+                    elements.timerFill.classList.add('urgent');
+                }
+
+                if (gameState.timeRemaining <= 0) {
+                    endAuction();
+                }
+            }, 100);
+        }
+
+        function endAuction() {
+            clearInterval(gameState.timerInterval);
+
+            if (gameState.currentBidder === 'YOU') {
+                // Player won!
+                gameState.itemsWon++;
+                gameState.totalSpent += gameState.currentBid;
+                gameState.currentStreak++;
+                
+                elements.itemsWon.textContent = gameState.itemsWon;
+                elements.totalSpent.textContent = '$' + gameState.totalSpent;
+                elements.currentStreak.textContent = gameState.currentStreak;
+
+                createConfetti();
+                elements.winMessage.textContent = `You won the ${auctionItems[currentItemIndex].name} for $${gameState.currentBid}!`;
+                elements.winModal.classList.add('show');
+            } else {
+                // Player lost
+                gameState.currentStreak = 0;
+                elements.currentStreak.textContent = '0';
+                showNotification('Auction Ended', `${gameState.currentBidder} won! Better luck next time.`, 'error');
+                loadNextItem();
+            }
+        }
+
+        // Confetti effect
+        function createConfetti() {
+            const colors = ['#ff2d75', '#00f5ff', '#39ff14', '#ffb300', '#ff6b6b', '#4ecdc4'];
+            for (let i = 0; i < 100; i++) {
+                const confetti = document.createElement('div');
+                confetti.className = 'confetti';
+                confetti.style.left = Math.random() * 100 + '%';
+                confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
+                confetti.style.animationDelay = Math.random() * 2 + 's';
+                confetti.style.animationDuration = (3 + Math.random() * 2) + 's';
+                elements.confettiContainer.appendChild(confetti);
+            }
+
+            setTimeout(() => {
+                elements.confettiContainer.innerHTML = '';
+            }, 5000);
+        }
+
+        // Load next item
+        function loadNextItem() {
+            currentItemIndex = (currentItemIndex + 1) % auctionItems.length;
+            const item = auctionItems[currentItemIndex];
+            
+            elements.itemIcon.textContent = item.icon;
+            elements.itemName.textContent = item.name;
+            elements.itemDescription.textContent = item.description;
+            
+            // Reset bid
+            gameState.currentBid = 100;
+            gameState.currentBidder = 'MysteryBidder42';
+            elements.currentBid.textContent = '$100';
+            elements.bidderName.textContent = 'MysteryBidder42';
+            
+            updateLeaderboard();
+            updateBidButtons();
+            startTimer();
+        }
+
+        // Event Listeners
+        document.querySelectorAll('.bid-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const amount = parseInt(btn.dataset.amount) + gameState.currentBid;
+                placeBid(amount);
+            });
+        });
+
+        elements.customBidBtn.addEventListener('click', () => {
+            const amount = parseInt(elements.customBidInput.value);
+            if (amount) {
+                placeBid(amount);
+                elements.customBidInput.value = '';
+            }
+        });
+
+        elements.customBidInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                const amount = parseInt(elements.customBidInput.value);
+                if (amount) {
+                    placeBid(amount);
+                    elements.customBidInput.value = '';
+                }
+            }
+        });
+
+        elements.nextItemBtn.addEventListener('click', () => {
+            elements.winModal.classList.remove('show');
+            loadNextItem();
+        });
+
+        // Initialize game
+        createParticles();
+        loadNextItem();
+        
+        // Start AI bidding loop
+        setInterval(() => {
+            if (gameState.timeRemaining > 0 && gameState.timeRemaining < 15) {
+                aiBid();
+            }
+        }, 2000);
+    </script>
+</body>
+</html>

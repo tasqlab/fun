@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>HackiBot - Claude AI</title>
+    <script src="https://js.puter.com/v2/"></script>
+    <style>
+        body { font-family: sans-serif; background: #1a1a1a; color: white; display: flex; flex-direction: column; height: 100vh; margin: 0; }
+        #chat-box { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
+        .message { padding: 10px; border-radius: 8px; max-width: 80%; }
+        .user { align-self: flex-end; background: #007bff; }
+        .bot { align-self: flex-start; background: #333; }
+        #input-area { padding: 20px; display: flex; gap: 10px; background: #222; }
+        input { flex: 1; padding: 10px; border: none; border-radius: 4px; }
+        button { padding: 10px 20px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <h2 style="text-align: center;">HackiBot</h2>
+    <div id="chat-box"></div>
+    <div id="input-area">
+        <input type="text" id="user-input" placeholder="Type a message...">
+        <button onclick="sendMessage()">Send</button>
+    </div>
+
+    <script>
+        async function sendMessage() {
+            const input = document.getElementById('user-input');
+            const chatBox = document.getElementById('chat-box');
+            if (!input.value) return;
+
+            // Add user message to UI
+            chatBox.innerHTML += `<div class="message user">${input.value}</div>`;
+            const userMsg = input.value;
+            input.value = '';
+
+            try {
+                // Call Claude via Puter.js
+                // Available models: 'claude-3-5-sonnet', 'claude-3-opus', etc.
+                const response = await puter.ai.chat(userMsg, { model: 'claude-3-5-sonnet' });
+                
+                // Add Bot response to UI
+                chatBox.innerHTML += `<div class="message bot">${response.message.content}</div>`;
+                chatBox.scrollTop = chatBox.scrollHeight;
+            } catch (error) {
+                console.error("AI Error:", error);
+            }
+        }
+    </script>
+</body>
+</html>

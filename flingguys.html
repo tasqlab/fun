@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fling Guys</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Syne+Mono&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f5f0e8;
+    --bg2: #ede8de;
+    --ink: #1a1714;
+    --ink2: #4a4540;
+    --ink3: #8a847a;
+    --red: #c0392b;
+    --green: #2d6a4f;
+    --blue: #1a4a7a;
+    --border: rgba(26,23,20,0.12);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+    opacity: 0.04;
+    pointer-events: none;
+    z-index: 9999;
+  }
+  #game-wrapper {
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    border-bottom: 2px solid var(--ink);
+    padding: 0 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 56px;
+    background: var(--bg);
+  }
+  .logo {
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+  .header-stats {
+    display: flex;
+    gap: 24px;
+    font-family: 'Syne Mono', monospace;
+    font-size: 12px;
+  }
+  .stat-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--ink3);
+  }
+  .stat-item strong {
+    color: var(--ink);
+    font-weight: 600;
+  }
+  #game-container {
+    flex: 1;
+    position: relative;
+    background: linear-gradient(180deg, #d4e8f7 0%, #a8c8e0 100%);
+    overflow: hidden;
+  }
+  #game-canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+  #menu-overlay, #level-complete, #game-over {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(245,240,232,0.97);
+    z-index: 50;
+  }
+  .menu-box, .complete-box {
+    text-align: center;
+    max-width: 400px;
+    padding: 40px;
+  }
+  .menu-emoji {
+    font-size: 72px;
+    margin-bottom: 16px;
+    display: block;
+    animation: bounce 1s ease infinite;
+  }
+  @keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-12px); }
+  }
+  .menu-title {
+    font-size: 42px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    margin-bottom: 12px;
+    background: linear-gradient(135deg, var(--red), #c05a10);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .menu-subtitle {
+    font-size: 14px;
+    color: var(--ink3);
+    margin-bottom: 32px;
+    line-height: 1.6;
+  }
+  .menu-btn {
+    background: var(--ink);
+    color: var(--bg);
+    border: none;
+    padding: 16px 48px;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    font-family: 'Syne', sans-serif;
+    transition: all 0.2s;
+    display: inline-block;
+    margin: 8px;
+  }
+  .menu-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(26,23,20,0.2);
+  }
+  .menu-btn.secondary {
+    background: transparent;
+    color: var(--ink);
+    border: 2px solid var(--ink);
+  }
+  .complete-title {
+    font-size: 36px;
+    font-weight: 800;
+    color: var(--green);
+    margin-bottom: 16px;
+  }
+  .complete-stars {
+    font-size: 48px;
+    margin: 24px 0;
+    letter-spacing: 8px;
+  }
+  .complete-score {
+    font-family: 'Syne Mono', monospace;
+    font-size: 18px;
+    color: var(--ink2);
+    margin-bottom: 24px;
+  }
+  .gameover-title {
+    font-size: 36px;
+    font-weight: 800;
+    color: var(--red);
+    margin-bottom: 16px;
+  }
+  #hud {
+    position: absolute;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 32px;
+    z-index: 20;
+  }
+  .hud-item {
+    background: var(--bg);
+    border: 2px solid var(--ink);
+    padding: 8px 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'Syne Mono', monospace;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  #menu-instructions {
+    margin-top: 32px;
+    font-size: 12px;
+    color: var(--ink3);
+    line-height: 2;
+    font-family: 'Syne Mono', monospace;
+    display: none;
+  }
+  #menu-instructions.show { display: block; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+  <div id="game-wrapper">
+    <header>
+      <div class="logo">Fling Guys</div>
+      <div class="header-stats">
+        <div class="stat-item"><span>LEVEL</span> <strong id="header-level">1</strong></div>
+        <div class="stat-item"><span>SCORE</span> <strong id="header-score">0</strong></div>
+      </div>
+    </header>
+    
+    <div id="game-container">
+      <canvas id="game-canvas"></canvas>
+      
+      <div id="hud" class="hidden">
+        <div class="hud-item">
+          <span>🎯</span>
+          <span id="hud-shots">5</span>
+        </div>
+        <div class="hud-item">
+          <span>👻</span>
+          <span id="hud-enemies">0</span>
+        </div>
+      </div>
+      
+      <div id="menu-overlay">
+        <div class="menu-box">
+          <span class="menu-emoji">😎</span>
+          <h1 class="menu-title">FLING GUYS</h1>
+          <p class="menu-subtitle">Drag, aim, and fling the guy into the boxes!<br>Knock down all enemies to win!</p>
+          <button class="menu-btn" id="play-btn">PLAY</button>
+          <button class="menu-btn secondary" id="how-btn">How to Play</button>
+          <div class="menu-instructions" id="menu-instructions">
+            🎯 Drag the slingshot to aim<br>
+            🏃 Release to fling!<br>
+            👻 Knock down all enemy guys<br>
+            ⭐ Use fewer shots for more stars!
+          </div>
+        </div>
+      </div>
+      
+      <div id="level-complete" class="hidden">
+        <div class="complete-box">
+          <h2 class="complete-title">LEVEL COMPLETE!</h2>
+          <div class="complete-stars" id="complete-stars">⭐⭐⭐</div>
+          <p class="complete-score" id="complete-score">Score: 0</p>
+          <button class="menu-btn" id="next-btn">NEXT LEVEL</button>
+        </div>
+      </div>
+      
+      <div id="game-over" class="hidden">
+        <div class="complete-box">
+          <span class="menu-emoji">😵</span>
+          <h2 class="gameover-title">GAME OVER</h2>
+          <p class="complete-score" id="gameover-score">Score: 0</p>
+          <button class="menu-btn" id="retry-btn">TRY AGAIN</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Canvas setup
+    const canvas = document.getElementById('game-canvas');
+    const ctx = canvas.getContext('2d');
+    
+    // Game constants
+    const GRAVITY = 0.4;
+    const FRICTION = 0.7;
+    const BOUNCE = 0.4;
+    
+    // Colors
+    const COLORS = {
+      ground: '#c9b896',
+      groundDark: '#a89878',
+      band: '#c0392b',
+      bandLight: '#e74c3c'
+    };
+    
+    // Faces
+    const GUY_FACES = ['😎', '😏', '🤪', '😸', '😼', '😻', '😺', '🦊', '🐼', '🦁', '🐯'];
+    
+    // Level data (8 levels)
+    const LEVELS = [
+      {
+        boxes: [{x:0.65,y:0.72,w:70,h:70,hp:1,c:'#c0392b'},{x:0.73,y:0.72,w:70,h:70,hp:1,c:'#2d6a4f'},{x:0.69,y:0.60,w:70,h:70,hp:1,c:'#1a4a7a'}],
+        enemies: [{x:0.70,y:0.48,f:'😎'},{x:0.77,y:0.72,f:'😏'}]
+      },
+      {
+        boxes: [{x:0.60,y:0.72,w:50,h:100,hp:1,c:'#5a2d82'},{x:0.60,y:0.52,w:50,h:80,hp:1,c:'#c05a10'},{x:0.60,y:0.38,w:50,h:60,hp:1,c:'#b8860b'},{x:0.75,y:0.72,w:50,h:80,hp:1,c:'#2d6a4f'},{x:0.75,y:0.58,w:50,h:60,hp:1,c:'#c0392b'}],
+        enemies: [{x:0.65,y:0.26,f:'🦊'},{x:0.80,y:0.46,f:'🐼'},{x:0.80,y:0.72,f:'😸'}]
+      },
+      {
+        boxes: [{x:0.55,y:0.72,w:40,h:120,hp:2,c:'#8b4513'},{x:0.55,y:0.50,w:40,h:100,hp:2,c:'#8b4513'},{x:0.80,y:0.72,w:40,h:120,hp:2,c:'#8b4513'},{x:0.80,y:0.50,w:40,h:100,hp:2,c:'#8b4513'},{x:0.60,y:0.72,w:80,h:30,hp:1,c:'#c05a10'},{x:0.72,y:0.72,w:80,h:30,hp:1,c:'#c05a10'},{x:0.66,y:0.62,w:50,h:50,hp:1,c:'#b8860b'}],
+        enemies: [{x:0.68,y:0.50,f:'🦁'},{x:0.68,y:0.72,f:'🐯'},{x:0.84,y:0.72,f:'😎'}]
+      },
+      {
+        boxes: [{x:0.55,y:0.72,w:60,h:60,hp:1,c:'#c0392b'},{x:0.55,y:0.62,w:60,h:60,hp:1,c:'#c0392b'},{x:0.55,y:0.52,w:60,h:60,hp:1,c:'#c0392b'},{x:0.55,y:0.42,w:60,h:60,hp:1,c:'#c0392b'},{x:0.62,y:0.72,w:60,h:60,hp:1,c:'#2d6a4f'},{x:0.62,y:0.62,w:60,h:60,hp:1,c:'#2d6a4f'},{x:0.62,y:0.52,w:60,h:60,hp:1,c:'#2d6a4f'},{x:0.69,y:0.72,w:60,h:60,hp:1,c:'#1a4a7a'},{x:0.69,y:0.62,w:60,h:60,hp:1,c:'#1a4a7a'},{x:0.76,y:0.72,w:60,h:60,hp:1,c:'#5a2d82'}],
+        enemies: [{x:0.60,y:0.32,f:'🐼'},{x:0.67,y:0.42,f:'🦊'},{x:0.74,y:0.52,f:'😸'},{x:0.80,y:0.72,f:'😏'}]
+      },
+      {
+        boxes: [{x:0.50,y:0.72,w:30,h:140,hp:2,c:'#4a4540'},{x:0.50,y:0.48,w:30,h:120,hp:2,c:'#4a4540'},{x:0.85,y:0.72,w:30,h:140,hp:2,c:'#4a4540'},{x:0.85,y:0.48,w:30,h:120,hp:2,c:'#4a4540'},{x:0.55,y:0.72,w:100,h:35,hp:1,c:'#8b5a2b'},{x:0.55,y:0.66,w:100,h:35,hp:1,c:'#8b5a2b'},{x:0.70,y:0.72,w:100,h:35,hp:1,c:'#8b5a2b'},{x:0.70,y:0.66,w:100,h:35,hp:1,c:'#8b5a2b'}],
+        enemies: [{x:0.67,y:0.50,f:'🦁'},{x:0.53,y:0.72,f:'😎'},{x:0.53,y:0.42,f:'😎'},{x:0.88,y:0.72,f:'😏'},{x:0.88,y:0.42,f:'😏'}]
+      },
+      {
+        boxes: [{x:0.45,y:0.72,w:25,h:180,hp:3,c:'#2c3e50'},{x:0.45,y:0.42,w:25,h:150,hp:3,c:'#2c3e50'},{x:0.75,y:0.72,w:25,h:180,hp:3,c:'#2c3e50'},{x:0.75,y:0.42,w:25,h:150,hp:3,c:'#2c3e50'},{x:0.50,y:0.72,w:60,h:40,hp:1,c:'#c0392b'},{x:0.50,y:0.66,w:60,h:40,hp:1,c:'#c0392b'},{x:0.50,y:0.60,w:60,h:40,hp:1,c:'#c0392b'},{x:0.70,y:0.72,w:60,h:40,hp:1,c:'#c0392b'},{x:0.70,y:0.66,w:60,h:40,hp:1,c:'#c0392b'},{x:0.70,y:0.60,w:60,h:40,hp:1,c:'#c0392b'},{x:0.58,y:0.52,w:40,h:80,hp:2,c:'#b8860b'},{x:0.68,y:0.52,w:40,h:80,hp:2,c:'#b8860b'},{x:0.63,y:0.38,w:50,h:50,hp:1,c:'#1a4a7a'}],
+        enemies: [{x:0.63,y:0.26,f:'🐲'},{x:0.50,y:0.72,f:'🦊'},{x:0.50,y:0.36,f:'😸'},{x:0.75,y:0.72,f:'🦊'},{x:0.75,y:0.36,f:'😸'}]
+      },
+      {
+        boxes: [{x:0.50,y:0.72,w:80,h:30,hp:1,c:'#34495e'},{x:0.55,y:0.66,w:30,h:50,hp:1,c:'#5a2d82'},{x:0.70,y:0.66,w:30,h:50,hp:1,c:'#5a2d82'},{x:0.60,y:0.59,w:60,h:25,hp:1,c:'#34495e'},{x:0.62,y:0.52,w:25,h:50,hp:1,c:'#c05a10'},{x:0.68,y:0.52,w:25,h:50,hp:1,c:'#c05a10'},{x:0.64,y:0.46,w:45,h:25,hp:1,c:'#2d6a4f'},{x:0.66,y:0.38,w:20,h:40,hp:2,c:'#b8860b'},{x:0.70,y:0.30,w:30,h:30,hp:1,c:'#c0392b'},{x:0.64,y:0.24,w:35,h:25,hp:1,c:'#1a4a7a'}],
+        enemies: [{x:0.70,y:0.18,f:'👽'},{x:0.64,y:0.12,f:'🤖'},{x:0.60,y:0.52,f:'😎'},{x:0.75,y:0.72,f:'😏'}]
+      },
+      {
+        boxes: [{x:0.52,y:0.72,w:35,h:35,hp:1,c:'#c0392b'},{x:0.52,y:0.62,w:35,h:35,hp:1,c:'#c0392b'},{x:0.52,y:0.52,w:35,h:35,hp:1,c:'#c0392b'},{x:0.52,y:0.42,w:35,h:35,hp:1,c:'#c0392b'},{x:0.52,y:0.32,w:35,h:35,hp:1,c:'#c0392b'},{x:0.59,y:0.72,w:35,h:35,hp:1,c:'#2d6a4f'},{x:0.59,y:0.62,w:35,h:35,hp:1,c:'#2d6a4f'},{x:0.59,y:0.52,w:35,h:35,hp:1,c:'#2d6a4f'},{x:0.59,y:0.42,w:35,h:35,hp:1,c:'#2d6a4f'},{x:0.59,y:0.32,w:35,h:35,hp:1,c:'#2d6a4f'},{x:0.66,y:0.72,w:35,h:35,hp:1,c:'#1a4a7a'},{x:0.66,y:0.62,w:35,h:35,hp:1,c:'#1a4a7a'},{x:0.66,y:0.52,w:35,h:35,hp:1,c:'#1a4a7a'},{x:0.66,y:0.42,w:35,h:35,hp:1,c:'#1a4a7a'},{x:0.66,y:0.32,w:35,h:35,hp:1,c:'#1a4a7a'}],
+        enemies: [{x:0.56,y:0.22,f:'🦁'},{x:0.63,y:0.22,f:'🐯'},{x:0.70,y:0.22,f:'🐼'},{x:0.56,y:0.72,f:'😎'},{x:0.63,y:0.72,f:'😏'},{x:0.70,y:0.72,f:'🤪'}]
+      }
+    ];
+    
+    // Game state
+    let gameState = 'menu';
+    let currentLevel = 1;
+    let score = 0;
+    let shotsLeft = 5;
+    let W, H, groundY;
+    let slingshotX, slingshotY;
+    let flyingGuy = null;
+    let isDragging = false;
+    let dragX = 0, dragY = 0;
+    let boxes = [];
+    let enemies = [];
+    let particles = [];
+    
+    // DOM elements
+    const menuOverlay = document.getElementById('menu-overlay');
+    const levelComplete = document.getElementById('level-complete');
+    const gameOverEl = document.getElementById('game-over');
+    const hud = document.getElementById('hud');
+    
+    // Resize handler
+    function resize() {
+      const container = document.getElementById('game-container');
+      W = canvas.width = container.clientWidth;
+      H = canvas.height = container.clientHeight;
+      groundY = H * 0.78;
+      slingshotX = W * 0.12;
+      slingshotY = H * 0.68;
+    }
+    
+    // Load level
+    function loadLevel(levelNum) {
+      const idx = (levelNum - 1) % LEVELS.length;
+      const data = LEVELS[idx];
+      const scale = W / 900;
+      
+      boxes = data.boxes.map(b => ({
+        x: W * b.x,
+        y: H * b.y,
+        w: b.w * scale,
+        h: b.h * scale,
+        hp: b.hp,
+        maxHp: b.hp,
+        color: b.c,
+        vx: 0,
+        vy: 0
+      }));
+      
+      enemies = data.enemies.map(e => ({
+        x: W * e.x,
+        y: H * e.y,
+        face: e.f,
+        alive: true,
+        vx: 0,
+        vy: 0
+      }));
+      
+      flyingGuy = null;
+      isDragging = false;
+      shotsLeft = 5;
+      particles = [];
+      updateHUD();
+    }
+    
+    // Update HUD
+    function updateHUD() {
+      document.getElementById('header-level').textContent = currentLevel;
+      document.getElementById('header-score').textContent = score;
+      document.getElementById('hud-shots').textContent = shotsLeft;
+      document.getElementById('hud-enemies').textContent = enemies.filter(e => e.alive).length;
+    }
+    
+    // Start game
+    function startGame() {
+      menuOverlay.classList.add('hidden');
+      hud.classList.remove('hidden');
+      gameState = 'playing';
+      currentLevel = 1;
+      score = 0;
+      loadLevel(1);
+    }
+    
+    // Next level
+    function nextLevel() {
+      levelComplete.classList.add('hidden');
+      currentLevel++;
+      gameState = 'playing';
+      loadLevel(currentLevel);
+    }
+    
+    // Restart
+    function restartGame() {
+      gameOverEl.classList.add('hidden');
+      currentLevel = 1;
+      score = 0;
+      gameState = 'playing';
+      loadLevel(1);
+    }
+    
+    // Button events
+    document.getElementById('play-btn').onclick = startGame;
+    document.getElementById('next-btn').onclick = nextLevel;
+    document.getElementById('retry-btn').onclick = restartGame;
+    document.getElementById('how-btn').onclick = function() {
+      document.getElementById('menu-instructions').classList.toggle('show');
+    };
+    
+    // Input handling
+    function getPos(e) {
+      const rect = canvas.getBoundingClientRect();
+      const cx = e.clientX || (e.touches && e.touches[0].clientX);
+      const cy = e.clientY || (e.touches && e.touches[0].clientY);
+      return { x: cx - rect.left, y: cy - rect.top };
+    }
+    
+    canvas.onmousedown = function(e) {
+      if (gameState !== 'playing' || shotsLeft <= 0 || flyingGuy) return;
+      const pos = getPos(e);
+      const dx = pos.x - slingshotX;
+      const dy = pos.y - slingshotY;
+      if (dx*dx + dy*dy < 10000) {
+        isDragging = true;
+        dragX = pos.x;
+        dragY = pos.y;
+      }
+    };
+    
+    canvas.onmousemove = function(e) {
+      if (!isDragging) return;
+      const pos = getPos(e);
+      const dx = pos.x - slingshotX;
+      const dy = pos.y - slingshotY;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      const maxDrag = 100;
+      if (dist > maxDrag) {
+        const angle = Math.atan2(dy, dx);
+        dragX = slingshotX + Math.cos(angle) * maxDrag;
+        dragY = slingshotY + Math.sin(angle) * maxDrag;
+      } else {
+        dragX = pos.x;
+        dragY = pos.y;
+      }
+    };
+    
+    canvas.onmouseup = function() {
+      if (!isDragging) return;
+      isDragging = false;
+      const dx = slingshotX - dragX;
+      const dy = slingshotY - dragY;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist > 15) {
+        const power = dist / 40;
+        flyingGuy = {
+          x: slingshotX,
+          y: slingshotY,
+          vx: dx * 0.1 * power,
+          vy: dy * 0.1 * power,
+          radius: 20,
+          face: GUY_FACES[Math.floor(Math.random() * GUY_FACES.length)],
+          rotation: 0,
+          rotSpeed: (Math.random() - 0.5) * 0.3
+        };
+        shotsLeft--;
+        updateHUD();
+      }
+    };
+    
+    // Touch support
+    canvas.ontouchstart = function(e) {
+      e.preventDefault();
+      canvas.onmousedown(e);
+    };
+    canvas.ontouchmove = function(e) {
+      e.preventDefault();
+      canvas.onmousemove(e);
+    };
+    canvas.ontouchend = function(e) {
+      e.preventDefault();
+      canvas.onmouseup(e);
+    };
+    
+    // Particle system
+    function addParticles(x, y, color, count) {
+      for (let i = 0; i < count; i++) {
+        particles.push({
+          x: x, y: y,
+          vx: (Math.random() - 0.5) * 8,
+          vy: (Math.random() - 0.5) * 8 - 2,
+          r: Math.random() * 4 + 2,
+          color: color,
+          life: 1
+        });
+      }
+    }
+    
+    // Collision detection
+    function rectCircle(r, c) {
+      const cx = Math.max(r.x, Math.min(c.x, r.x + r.w));
+      const cy = Math.max(r.y, Math.min(c.y, r.y + r.h));
+      return (c.x - cx) ** 2 + (c.y - cy) ** 2 < c.radius ** 2;
+    }
+    
+    function rectRect(a, b) {
+      return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+    }
+    
+    // Update
+    function update() {
+      if (gameState !== 'playing') return;
+      
+      // Update particles
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += 0.25;
+        p.life -= 0.03;
+        if (p.life <= 0) particles.splice(i, 1);
+      }
+      
+      // Update boxes (simple gravity)
+      for (let box of boxes) {
+        if (box.hp <= 0) continue;
+        box.vy += GRAVITY * 0.5;
+        box.y += box.vy;
+        box.x += box.vx;
+        box.vx *= 0.95;
+        
+        if (box.y + box.h > groundY) {
+          box.y = groundY - box.h;
+          box.vy *= -BOUNCE;
+          if (Math.abs(box.vy) < 2) box.vy = 0;
+        }
+      }
+      
+      // Update enemies (fall to ground/boxes)
+      for (let enemy of enemies) {
+        if (!enemy.alive) continue;
+        enemy.vy += GRAVITY;
+        enemy.y += enemy.vy;
+        
+        if (enemy.y + 15 > groundY) {
+          enemy.y = groundY - 15;
+          enemy.vy = 0;
+        }
+        
+        for (let box of boxes) {
+          if (box.hp <= 0) continue;
+          if (enemy.x > box.x && enemy.x < box.x + box.w && enemy.y + 15 > box.y) {
+            enemy.y = box.y - 15;
+            enemy.vy = 0;
+          }
+        }
+      }
+      
+      // Update flying guy
+      if (flyingGuy) {
+        flyingGuy.x += flyingGuy.vx;
+        flyingGuy.y += flyingGuy.vy;
+        flyingGuy.vy += GRAVITY;
+        flyingGuy.rotation += flyingGuy.rotSpeed;
+        
+        // Ground
+        if (flyingGuy.y + flyingGuy.radius > groundY) {
+          flyingGuy.y = groundY - flyingGuy.radius;
+          flyingGuy.vy *= -BOUNCE;
+          flyingGuy.vx *= 0.75;
+          
+          if (Math.abs(flyingGuy.vy) < 1.5 && Math.abs(flyingGuy.vx) < 1.5) {
+            addParticles(flyingGuy.x, flyingGuy.y, '#f5f0e8', 10);
+            flyingGuy = null;
+            checkWinLose();
+            return;
+          }
+        }
+        
+        // Walls
+        if (flyingGuy.x < 0 || flyingGuy.x > W) {
+          flyingGuy = null;
+          checkWinLose();
+          return;
+        }
+        
+        // Box collision
+        for (let box of boxes) {
+          if (box.hp <= 0) continue;
+          if (rectCircle(box, flyingGuy)) {
+            box.hp--;
+            box.vx += flyingGuy.vx * 0.2;
+            box.vy += flyingGuy.vy * 0.2;
+            flyingGuy.vx *= 0.7;
+            flyingGuy.vy *= 0.7;
+            addParticles(flyingGuy.x, flyingGuy.y, box.color, 5);
+            
+            if (box.hp <= 0) {
+              score += 50;
+              addParticles(box.x + box.w/2, box.y + box.h/2, box.color, 15);
+            }
+            updateHUD();
+          }
+        }
+        
+        // Enemy collision
+        for (let enemy of enemies) {
+          if (!enemy.alive) continue;
+          const er = { x: enemy.x - 15, y: enemy.y - 15, w: 30, h: 30 };
+          if (rectCircle(er, flyingGuy)) {
+            enemy.alive = false;
+            score += 100;
+            addParticles(enemy.x, enemy.y, '#c0392b', 20);
+            updateHUD();
+          }
+        }
+      }
+    }
+    
+    // Check win/lose
+    function checkWinLose() {
+      const aliveEnemies = enemies.filter(e => e.alive).length;
+      
+      if (aliveEnemies === 0) {
+        gameState = 'levelComplete';
+        const stars = shotsLeft >= 4 ? 3 : shotsLeft >= 2 ? 2 : 1;
+        document.getElementById('complete-stars').textContent = '⭐'.repeat(stars);
+        document.getElementById('complete-score').textContent = 'Score: ' + score;
+        levelComplete.classList.remove('hidden');
+      } else if (shotsLeft <= 0 && !flyingGuy) {
+        gameState = 'gameOver';
+        document.getElementById('gameover-score').textContent = 'Score: ' + score;
+        gameOverEl.classList.remove('hidden');
+      }
+    }
+    
+    // Draw
+    function draw() {
+      // Sky
+      const grad = ctx.createLinearGradient(0, 0, 0, H);
+      grad.addColorStop(0, '#d4e8f7');
+      grad.addColorStop(1, '#a8c8e0');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, W, H);
+      
+      // Clouds
+      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      ctx.beginPath();
+      ctx.arc(W * 0.2, H * 0.15, 40, 0, Math.PI * 2);
+      ctx.arc(W * 0.25, H * 0.12, 30, 0, Math.PI * 2);
+      ctx.arc(W * 0.3, H * 0.18, 25, 0, Math.PI * 2);
+      ctx.fill();
+      
+      ctx.beginPath();
+      ctx.arc(W * 0.7, H * 0.18, 50, 0, Math.PI * 2);
+      ctx.arc(W * 0.76, H * 0.14, 35, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Ground
+      ctx.fillStyle = COLORS.ground;
+      ctx.fillRect(0, groundY, W, H - groundY);
+      ctx.strokeStyle = COLORS.groundDark;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(0, groundY);
+      ctx.lineTo(W, groundY);
+      ctx.stroke();
+      
+      // Slingshot
+      ctx.fillStyle = '#6d4c41';
+      ctx.fillRect(slingshotX - 10, slingshotY - 70, 6, 80);
+      ctx.fillStyle = '#8d6e63';
+      ctx.fillRect(slingshotX + 4, slingshotY - 70, 6, 80);
+      
+      // Band
+      ctx.strokeStyle = COLORS.band;
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      if (isDragging) {
+        ctx.moveTo(slingshotX - 7, slingshotY - 60);
+        ctx.lineTo(dragX, dragY);
+        ctx.lineTo(slingshotX + 10, slingshotY - 60);
+      } else {
+        ctx.moveTo(slingshotX - 7, slingshotY - 60);
+        ctx.quadraticCurveTo(slingshotX + 2, slingshotY - 20, slingshotX + 10, slingshotY - 60);
+      }
+      ctx.stroke();
+      
+      // Dragging guy preview
+      if (isDragging) {
+        drawGuy(dragX, dragY, 18, '😎');
+      }
+      
+      // Boxes
+      for (let box of boxes) {
+        if (box.hp <= 0) continue;
+        ctx.fillStyle = box.color;
+        ctx.fillRect(box.x, box.y, box.w, box.h);
+        ctx.fillStyle = 'rgba(255,255,255,0.2)';
+        ctx.fillRect(box.x, box.y, box.w, 4);
+        ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(box.x, box.y, box.w, box.h);
+      }
+      
+      // Enemies
+      for (let enemy of enemies) {
+        if (!enemy.alive) continue;
+        drawGuy(enemy.x, enemy.y, 16, enemy.face);
+      }
+      
+      // Flying guy
+      if (flyingGuy) {
+        drawGuy(flyingGuy.x, flyingGuy.y, flyingGuy.radius, flyingGuy.face, flyingGuy.rotation);
+      }
+      
+      // Particles
+      for (let p of particles) {
+        ctx.globalAlpha = p.life;
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+    
+    function drawGuy(x, y, r, face, rot) {
+      ctx.save();
+      ctx.translate(x, y);
+      if (rot) ctx.rotate(rot);
+      
+      // Body
+      const g = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
+      g.addColorStop(0, '#ffd54f');
+      g.addColorStop(1, '#ffb300');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.fill();
+      
+      ctx.strokeStyle = '#f57f17';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      
+      ctx.font = (r * 1.1) + 'px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(face, 0, 1);
+      
+      ctx.restore();
+    }
+    
+    // Game loop
+    function loop() {
+      update();
+      draw();
+      requestAnimationFrame(loop);
+    }
+    
+    // Init
+    window.onresize = resize;
+    resize();
+    loop();
+  </script>
+</body>
+</html>

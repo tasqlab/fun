@@ -1,0 +1,176 @@
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Deep Sea Explorer</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: linear-gradient(to bottom, #1e3a8a 0%, #0c1445 50%, #000000 100%);
+    min-height: 20000px;
+    overflow-x: hidden;
+  }
+  
+  .depth-meter {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: rgba(0,0,0,0.7);
+    color: white;
+    padding: 20px;
+    border-radius: 10px;
+    font-size: 24px;
+    z-index: 1000;
+  }
+  
+  .creature {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+    opacity: 0;
+    transition: opacity 0.5s;
+  }
+  
+  .creature.visible {
+    opacity: 1;
+  }
+  
+  .creature-name {
+    font-size: 28px;
+    font-weight: bold;
+    color: white;
+    margin-bottom: 10px;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+  }
+  
+  .creature-emoji {
+    font-size: 80px;
+    filter: drop-shadow(0 0 20px rgba(255,255,255,0.3));
+  }
+  
+  .creature-fact {
+    color: rgba(255,255,255,0.8);
+    font-size: 16px;
+    max-width: 400px;
+    margin: 10px auto;
+    line-height: 1.5;
+  }
+  
+  .intro {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    text-align: center;
+    transition: opacity 0.5s;
+    pointer-events: none;
+  }
+  
+  .intro h1 {
+    font-size: 48px;
+    margin-bottom: 20px;
+  }
+  
+  .intro p {
+    font-size: 20px;
+    opacity: 0.8;
+  }
+  
+  .scroll-hint {
+    position: fixed;
+    bottom: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: white;
+    font-size: 18px;
+    animation: bounce 2s infinite;
+  }
+  
+  @keyframes bounce {
+    0%, 100% { transform: translateX(-50%) translateY(0); }
+    50% { transform: translateX(-50%) translateY(-10px); }
+  }
+</style>
+</head>
+<body>
+  <div class="depth-meter">
+    <div id="depth">0m</div>
+  </div>
+  
+  <div class="intro" id="intro">
+    <h1>🌊 Deep Sea Explorer</h1>
+    <p>Scroll down to explore the ocean depths</p>
+  </div>
+  
+  <div class="scroll-hint" id="scrollHint">↓ Scroll to dive ↓</div>
+  
+  <script>
+    const creatures = [
+      { depth: 500, emoji: '🐠', name: 'Tropical Fish', fact: 'Colorful fish thrive in warm, shallow waters' },
+      { depth: 1000, emoji: '🦈', name: 'Great White Shark', fact: 'Can detect a single drop of blood in 100 liters of water' },
+      { depth: 2000, emoji: '🐙', name: 'Giant Octopus', fact: 'Has three hearts and blue blood' },
+      { depth: 3000, emoji: '🦑', name: 'Giant Squid', fact: 'Eyes as large as dinner plates, the biggest in the animal kingdom' },
+      { depth: 4000, emoji: '🐡', name: 'Blobfish', fact: 'Looks normal at depth, only blob-like at surface' },
+      { depth: 5000, emoji: '🦐', name: 'Deep Sea Shrimp', fact: 'Can produce light through bioluminescence' },
+      { depth: 6000, emoji: '🐟', name: 'Anglerfish', fact: 'Uses a bioluminescent lure to attract prey in total darkness' },
+      { depth: 7000, emoji: '🪼', name: 'Giant Jellyfish', fact: 'Some species can live for thousands of years' },
+      { depth: 8000, emoji: '🦑', name: 'Colossal Squid', fact: 'Larger than giant squid, with rotating hooks on tentacles' },
+      { depth: 9000, emoji: '👾', name: 'Unknown Species', fact: 'Scientists estimate 91% of ocean species remain undiscovered' },
+      { depth: 10000, emoji: '🌑', name: 'The Abyss', fact: 'Deeper than Mount Everest is tall. Pressure: 1000x surface level.' },
+      { depth: 11000, emoji: '⚫', name: 'Mariana Trench', fact: 'The deepest known point on Earth - 10,994 meters' }
+    ];
+    
+    // Create creature elements
+    creatures.forEach(creature => {
+      const div = document.createElement('div');
+      div.className = 'creature';
+      div.style.top = `${creature.depth * 1.8}px`;
+      div.innerHTML = `
+        <div class="creature-emoji">${creature.emoji}</div>
+        <div class="creature-name">${creature.name}</div>
+        <div class="creature-fact">${creature.fact}</div>
+      `;
+      document.body.appendChild(div);
+    });
+    
+    const depthDisplay = document.getElementById('depth');
+    const intro = document.getElementById('intro');
+    const scrollHint = document.getElementById('scrollHint');
+    const creatureElements = document.querySelectorAll('.creature');
+    
+    window.addEventListener('scroll', () => {
+      const scrolled = window.scrollY;
+      const depth = Math.round(scrolled / 1.8);
+      
+      depthDisplay.textContent = `${depth}m`;
+      
+      // Fade out intro
+      if (scrolled > 100) {
+        intro.style.opacity = '0';
+        scrollHint.style.opacity = '0';
+      } else {
+        intro.style.opacity = '1';
+        scrollHint.style.opacity = '1';
+      }
+      
+      // Show creatures as we reach their depth
+      creatureElements.forEach((element, index) => {
+        const creatureDepth = creatures[index].depth;
+        if (depth >= creatureDepth - 200 && depth <= creatureDepth + 500) {
+          element.classList.add('visible');
+        } else {
+          element.classList.remove('visible');
+        }
+      });
+      
+      // Darken background as we go deeper
+      const darkness = Math.min(scrolled / 10000, 1);
+      document.body.style.filter = `brightness(${1 - darkness * 0.7})`;
+    });
+  </script>
+</body>
+</html>
