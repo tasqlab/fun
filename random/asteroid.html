@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asteroid Launcher</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0a0a0f;
+            --bg-panel: #12121a;
+            --accent-cyan: #00d4ff;
+            --accent-orange: #ff6b35;
+            --accent-purple: #a855f7;
+            --text-primary: #ffffff;
+            --text-secondary: #8b8b9e;
+            --glow-cyan: 0 0 30px rgba(0, 212, 255, 0.5);
+            --glow-orange: 0 0 30px rgba(255, 107, 53, 0.5);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Starfield background */
+        #starfield {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(ellipse at center, #1a1a2e 0%, #0a0a0f 100%);
+        }
+
+        .star {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            animation: twinkle 3s infinite ease-in-out;
+        }
+
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+        }
+
+        /* Control Panel */
+        #controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: var(--bg-panel);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 16px;
+            padding: 24px;
+            width: 320px;
+            backdrop-filter: blur(10px);
+            z-index: 100;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 800;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-bottom: 20px;
+            font-family: 'Space Mono', monospace;
+        }
+
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        .control-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .control-value {
+            font-family: 'Space Mono', monospace;
+            color: var(--accent-cyan);
+            font-weight: 700;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 8px;
+            -webkit-appearance: none;
+            background: linear-gradient(90deg, var(--accent-cyan), var(--accent-purple));
+            border-radius: 4px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: var(--glow-cyan);
+            transition: transform 0.2s;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        #launch-btn {
+            width: 100%;
+            padding: 16px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            font-family: 'Outfit', sans-serif;
+            background: linear-gradient(135deg, var(--accent-orange), #ff8c5a);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        #launch-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--glow-orange);
+        }
+
+        #launch-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Stats Panel */
+        #stats {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: var(--bg-panel);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 16px;
+            padding: 20px 24px;
+            backdrop-filter: blur(10px);
+            z-index: 100;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 40px;
+            margin-bottom: 8px;
+        }
+
+        .stat-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .stat-label {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .stat-value {
+            font-family: 'Space Mono', monospace;
+            font-weight: 700;
+            color: var(--accent-cyan);
+        }
+
+        /* Canvas */
+        #game-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Impact Modal */
+        #impact-modal {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            background: var(--bg-panel);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 24px;
+            padding: 40px;
+            text-align: center;
+            z-index: 200;
+            backdrop-filter: blur(20px);
+            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        #impact-modal.show {
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        #impact-modal h2 {
+            font-size: 2rem;
+            margin-bottom: 8px;
+            color: var(--accent-orange);
+        }
+
+        #impact-modal .planet-name {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        #impact-modal .distance {
+            font-family: 'Space Mono', monospace;
+            font-size: 1.2rem;
+            color: var(--accent-cyan);
+            margin-bottom: 24px;
+        }
+
+        #impact-modal button {
+            padding: 12px 32px;
+            font-size: 1rem;
+            font-weight: 600;
+            font-family: 'Outfit', sans-serif;
+            background: transparent;
+            border: 2px solid var(--accent-cyan);
+            border-radius: 8px;
+            color: var(--accent-cyan);
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        #impact-modal button:hover {
+            background: var(--accent-cyan);
+            color: var(--bg-dark);
+        }
+
+        /* Legend */
+        #legend {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: var(--bg-panel);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 16px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            z-index: 100;
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
+        }
+
+        #legend h3 {
+            font-size: 1rem;
+            margin-bottom: 16px;
+            color: var(--text-secondary);
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+            font-size: 0.85rem;
+        }
+
+        .legend-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .legend-name {
+            flex: 1;
+        }
+
+        .legend-dist {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        /* Instructions */
+        #instructions {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            text-align: right;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="starfield"></div>
+        <canvas id="game-canvas"></canvas>
+
+        <div id="controls">
+            <h1>Asteroid Launcher</h1>
+            <p class="subtitle">// Neil.fun style</p>
+            
+            <div class="control-group">
+                <div class="control-label">
+                    <span>Launch Angle</span>
+                    <span class="control-value" id="angle-value">45°</span>
+                </div>
+                <input type="range" id="angle" min="0" max="90" value="45">
+            </div>
+
+            <div class="control-group">
+                <div class="control-label">
+                    <span>Launch Power</span>
+                    <span class="control-value" id="power-value">50%</span>
+                </div>
+                <input type="range" id="power" min="10" max="100" value="50">
+            </div>
+
+            <div class="control-group">
+                <div class="control-label">
+                    <span>Target Planet</span>
+                    <span class="control-value" id="target-value">Earth</span>
+                </div>
+                <input type="range" id="target" min="0" max="7" value="2">
+            </div>
+
+            <button id="launch-btn">🚀 Launch Asteroid</button>
+        </div>
+
+        <div id="stats">
+            <div class="stat-row">
+                <span class="stat-label">Distance</span>
+                <span class="stat-value" id="stat-distance">0 km</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Speed</span>
+                <span class="stat-value" id="stat-speed">0 km/s</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Time</span>
+                <span class="stat-value" id="stat-time">0s</span>
+            </div>
+        </div>
+
+        <div id="legend">
+            <h3>Solar System (Log Scale)</h3>
+            <div id="legend-items"></div>
+        </div>
+
+        <div id="instructions">
+            Scroll to zoom • Drag to pan
+        </div>
+
+        <div id="impact-modal">
+            <h2>💥 IMPACT!</h2>
+            <p class="planet-name" id="impact-planet">Earth</p>
+            <p class="distance" id="impact-distance">149.6M km</p>
+            <button id="reset-btn">Launch Again</button>
+        </div>
+    </div>
+
+    <script>
+        // Real astronomical data
+        const SOLAR_SYSTEM = [
+            { name: 'Mercury', distance: 77e6, radius: 2440, color: '#b5b5b5' },
+            { name: 'Venus', distance: 108.2e6, radius: 6052, color: '#e6c87a' },
+            { name: 'Earth', distance: 149.6e6, radius: 6371, color: '#4a90d9' },
+            { name: 'Mars', distance: 227.9e6, radius: 3390, color: '#d1603d' },
+            { name: 'Jupiter', distance: 778.5e6, radius: 69911, color: '#d4a574' },
+            { name: 'Saturn', distance: 1432e6, radius: 58232, color: '#e4d4a3' },
+            { name: 'Uranus', distance: 2867e6, radius: 25362, color: '#a5d4e4' },
+            { name: 'Neptune', distance: 4515e6, radius: 24622, color: '#5b7fce' }
+        ];
+
+        // Canvas setup
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+        
+        let width, height;
+        function resize() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+        }
+        resize();
+        window.addEventListener('resize', resize);
+
+        // Game state
+        let asteroid = null;
+        let planets = [];
+        let camera = { x: 0, y: 0, zoom: 1 };
+        let isLaunched = false;
+        let launchTime = 0;
+        let targetPlanetIndex = 2;
+
+        // Initialize stars
+        const starfield = document.getElementById('starfield');
+        for (let i = 0; i < 200; i++) {
+            const star = document.createElement('div');
+            star.className = 'star';
+            star.style.left = Math.random() * 100 + '%';
+            star.style.top = Math.random() * 100 + '%';
+            star.style.width = Math.random() * 2 + 1 + 'px';
+            star.style.height = star.style.width;
+            star.style.animationDelay = Math.random() * 3 + 's';
+            starfield.appendChild(star);
+        }
+
+        // Setup legend
+        const legendItems = document.getElementById('legend-items');
+        SOLAR_SYSTEM.forEach((planet, i) => {
+            const item = document.createElement('div');
+            item.className = 'legend-item';
+            item.innerHTML = `
+                <div class="legend-dot" style="background: ${planet.color}"></div>
+                <span class="legend-name">${planet.name}</span>
+                <span class="legend-dist">${(planet.distance / 1e6).toFixed(1)}M km</span>
+            `;
+            legendItems.appendChild(item);
+        });
+
+        // Initialize planets (scaled for visualization)
+        function initPlanets() {
+            planets = SOLAR_SYSTEM.map((planet, i) => ({
+                ...planet,
+                x: 150 + i * 120,
+                y: height / 2,
+                scaledRadius: Math.max(8, Math.log10(planet.radius) * 15)
+            }));
+        }
+        initPlanets();
+
+        // Camera controls
+        let isDragging = false;
+        let dragStart = { x: 0, y: 0 };
+        let cameraStart = { x: 0, y: 0 };
+
+        canvas.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            dragStart = { x: e.clientX, y: e.clientY };
+            cameraStart = { x: camera.x, y: camera.y };
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (isDragging) {
+                camera.x = cameraStart.x - (e.clientX - dragStart.x) / camera.zoom;
+                camera.y = cameraStart.y - (e.clientY - dragStart.y) / camera.zoom;
+            }
+        });
+
+        canvas.addEventListener('mouseup', () => isDragging = false);
+        canvas.addEventListener('mouseleave', () => isDragging = false);
+
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
+            camera.zoom = Math.max(0.1, Math.min(5, camera.zoom * zoomFactor));
+        });
+
+        // Controls
+        const angleSlider = document.getElementById('angle');
+        const powerSlider = document.getElementById('power');
+        const targetSlider = document.getElementById('target');
+        const launchBtn = document.getElementById('launch-btn');
+
+        angleSlider.addEventListener('input', () => {
+            document.getElementById('angle-value').textContent = angleSlider.value + '°';
+        });
+
+        powerSlider.addEventListener('input', () => {
+            document.getElementById('power-value').textContent = powerSlider.value + '%';
+        });
+
+        targetSlider.addEventListener('input', () => {
+            targetPlanetIndex = parseInt(targetSlider.value);
+            document.getElementById('target-value').textContent = SOLAR_SYSTEM[targetPlanetIndex].name;
+        });
+
+        // Launch asteroid
+        launchBtn.addEventListener('click', launchAsteroid);
+
+        function launchAsteroid() {
+            if (isLaunched) return;
+            
+            const angle = parseInt(angleSlider.value);
+            const power = parseInt(powerSlider.value);
+            
+            // Starting position
+            const startX = 50;
+            const startY = height / 2 - 100;
+            
+            // Convert angle to radians and adjust for canvas coordinate system
+            const rad = (angle * Math.PI) / 180;
+            const velocity = power * 2;
+            
+            asteroid = {
+                x: startX,
+                y: startY,
+                vx: Math.cos(rad) * velocity,
+                vy: -Math.sin(rad) * velocity,
+                trail: []
+            };
+            
+            isLaunched = true;
+            launchTime = Date.now();
+            launchBtn.disabled = true;
+            
+            // Focus camera on target
+            camera.x = planets[targetPlanetIndex].x - width / 2;
+            camera.zoom = 0.8;
+        }
+
+        // Animation loop
+        function animate() {
+            ctx.fillStyle = 'rgba(10, 10, 15, 0.3)';
+            ctx.fillRect(0, 0, width, height);
+
+            ctx.save();
+            ctx.translate(width / 2, height / 2);
+            ctx.scale(camera.zoom, camera.zoom);
+            ctx.translate(-width / 2 - camera.x, -height / 2 - camera.y);
+
+            // Draw sun
+            const sunGradient = ctx.createRadialGradient(80, height / 2, 0, 80, height / 2, 40);
+            sunGradient.addColorStop(0, '#fff');
+            sunGradient.addColorStop(0.3, '#ffd93d');
+            sunGradient.addColorStop(1, '#ff8c00');
+            ctx.beginPath();
+            ctx.arc(80, height / 2, 30, 0, Math.PI * 2);
+            ctx.fillStyle = sunGradient;
+            ctx.fill();
+
+            // Sun glow
+            const sunGlow = ctx.createRadialGradient(80, height / 2, 30, 80, height / 2, 80);
+            sunGlow.addColorStop(0, 'rgba(255, 200, 0, 0.3)');
+            sunGlow.addColorStop(1, 'rgba(255, 200, 0, 0)');
+            ctx.beginPath();
+            ctx.arc(80, height / 2, 80, 0, Math.PI * 2);
+            ctx.fillStyle = sunGlow;
+            ctx.fill();
+
+            // Draw orbit lines
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+            ctx.lineWidth = 1;
+            planets.forEach((planet, i) => {
+                ctx.beginPath();
+                ctx.arc(80, height / 2, planet.x - 80, 0, Math.PI * 2);
+                ctx.stroke();
+            });
+
+            // Draw planets
+            planets.forEach((planet, i) => {
+                const planetGradient = ctx.createRadialGradient(
+                    planet.x - planet.scaledRadius / 3, 
+                    planet.y - planet.scaledRadius / 3, 
+                    0,
+                    planet.x, 
+                    planet.y, 
+                    planet.scaledRadius
+                );
+                planetGradient.addColorStop(0, lightenColor(planet.color, 30));
+                planetGradient.addColorStop(0.5, planet.color);
+                planetGradient.addColorStop(1, darkenColor(planet.color, 30));
+                
+                ctx.beginPath();
+                ctx.arc(planet.x, planet.y, planet.scaledRadius, 0, Math.PI * 2);
+                ctx.fillStyle = planetGradient;
+                ctx.fill();
+
+                // Planet label
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+                ctx.font = '12px Outfit';
+                ctx.textAlign = 'center';
+                ctx.fillText(planet.name, planet.x, planet.y + planet.scaledRadius + 20);
+            });
+
+            // Update and draw asteroid
+            if (asteroid && isLaunched) {
+                // Physics update
+                asteroid.x += asteroid.vx;
+                asteroid.y += asteroid.vy;
+                
+                // Trail
+                asteroid.trail.push({ x: asteroid.x, y: asteroid.y });
+                if (asteroid.trail.length > 100) asteroid.trail.shift();
+
+                // Draw trail
+                ctx.strokeStyle = '#ff6b35';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                asteroid.trail.forEach((point, i) => {
+                    if (i === 0) ctx.moveTo(point.x, point.y);
+                    else ctx.lineTo(point.x, point.y);
+                });
+                ctx.stroke();
+
+                // Draw asteroid
+                const asteroidGradient = ctx.createRadialGradient(
+                    asteroid.x, asteroid.y, 0,
+                    asteroid.x, asteroid.y, 8
+                );
+                asteroidGradient.addColorStop(0, '#fff');
+                asteroidGradient.addColorStop(0.5, '#ff6b35');
+                asteroidGradient.addColorStop(1, '#cc4400');
+                
+                ctx.beginPath();
+                ctx.arc(asteroid.x, asteroid.y, 6, 0, Math.PI * 2);
+                ctx.fillStyle = asteroidGradient;
+                ctx.fill();
+
+                // Check collision with planets
+                planets.forEach((planet, i) => {
+                    const dx = asteroid.x - planet.x;
+                    const dy = asteroid.y - planet.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (dist < planet.scaledRadius + 10) {
+                        showImpact(planet, i);
+                    }
+                });
+
+                // Check if too far
+                if (asteroid.x > 6000 || asteroid.x < -500 || asteroid.y > height + 500 || asteroid.y < -500) {
+                    resetGame();
+                }
+            }
+
+            // Draw launcher
+            if (!isLaunched) {
+                const launchX = 50;
+                const launchY = height / 2 - 100;
+                const angle = parseInt(angleSlider.value);
+                const rad = (angle * Math.PI) / 180;
+                
+                ctx.strokeStyle = '#00d4ff';
+                ctx.lineWidth = 4;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(launchX, launchY);
+                ctx.lineTo(
+                    launchX + Math.cos(rad) * 40,
+                    launchY - Math.sin(rad) * 40
+                );
+                ctx.stroke();
+                
+                // Launcher base
+                ctx.fillStyle = '#333';
+                ctx.beginPath();
+                ctx.arc(launchX, launchY, 15, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            ctx.restore();
+
+            // Update stats
+            if (asteroid && isLaunched) {
+                const dx = asteroid.x - 50;
+                const dy = asteroid.y - (height / 2 - 100);
+                const distance = Math.sqrt(dx * dx + dy * dy) * 10000; // Scale to km
+                const speed = Math.sqrt(asteroid.vx * asteroid.vx + asteroid.vy * asteroid.vy) * 1000;
+                const elapsed = (Date.now() - launchTime) / 1000;
+                
+                document.getElementById('stat-distance').textContent = formatDistance(distance);
+                document.getElementById('stat-speed').textContent = formatSpeed(speed);
+                document.getElementById('stat-time').textContent = elapsed.toFixed(1) + 's';
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        function showImpact(planet, index) {
+            const distance = SOLAR_SYSTEM[index].distance;
+            document.getElementById('impact-planet').textContent = planet.name;
+            document.getElementById('impact-distance').textContent = formatDistance(distance);
+            document.getElementById('impact-modal').classList.add('show');
+            
+            // Create explosion effect
+            for (let i = 0; i < 20; i++) {
+                createExplosionParticle(planet.x, planet.y, planet.color);
+            }
+        }
+
+        let particles = [];
+        function createExplosionParticle(x, y, color) {
+            particles.push({
+                x, y,
+                vx: (Math.random() - 0.5) * 10,
+                vy: (Math.random() - 0.5) * 10,
+                life: 1,
+                color
+            });
+        }
+
+        // Add particle drawing to animate
+        const originalAnimate = animate;
+        animate = function() {
+            originalAnimate();
+            
+            // Draw particles
+            ctx.save();
+            ctx.translate(width / 2, height / 2);
+            ctx.scale(camera.zoom, camera.zoom);
+            ctx.translate(-width / 2 - camera.x, -height / 2 - camera.y);
+            
+            particles = particles.filter(p => {
+                p.x += p.vx;
+                p.y += p.vy;
+                p.life -= 0.02;
+                
+                if (p.life > 0) {
+                    ctx.globalAlpha = p.life;
+                    ctx.fillStyle = p.color;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+                    ctx.fill();
+                    return true;
+                }
+                return false;
+            });
+            ctx.globalAlpha = 1;
+            ctx.restore();
+        };
+
+        document.getElementById('reset-btn').addEventListener('click', () => {
+            document.getElementById('impact-modal').classList.remove('show');
+            resetGame();
+        });
+
+        function resetGame() {
+            asteroid = null;
+            isLaunched = false;
+            launchBtn.disabled = false;
+            camera = { x: 0, y: 0, zoom: 1 };
+            document.getElementById('stat-distance').textContent = '0 km';
+            document.getElementById('stat-speed').textContent = '0 km/s';
+            document.getElementById('stat-time').textContent = '0s';
+        }
+
+        // Color utilities
+        function lightenColor(color, percent) {
+            const num = parseInt(color.replace('#', ''), 16);
+            const amt = Math.round(2.55 * percent);
+            const R = Math.min(255, (num >> 16) + amt);
+            const G = Math.min(255, ((num >> 8) & 0x00FF) + amt);
+            const B = Math.min(255, (num & 0x0000FF) + amt);
+            return '#' + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1);
+        }
+
+        function darkenColor(color, percent) {
+            const num = parseInt(color.replace('#', ''), 16);
+            const amt = Math.round(2.55 * percent);
+            const R = Math.max(0, (num >> 16) - amt);
+            const G = Math.max(0, ((num >> 8) & 0x00FF) - amt);
+            const B = Math.max(0, (num & 0x0000FF) - amt);
+            return '#' + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1);
+        }
+
+        function formatDistance(km) {
+            if (km >= 1e9) return (km / 1e9).toFixed(2) + 'B km';
+            if (km >= 1e6) return (km / 1e6).toFixed(1) + 'M km';
+            if (km >= 1e3) return (km / 1e3).toFixed(0) + 'K km';
+            return km.toFixed(0) + ' km';
+        }
+
+        function formatSpeed(mps) {
+            if (mps >= 1e6) return (mps / 1e6).toFixed(1) + 'M m/s';
+            if (mps >= 1e3) return (mps / 1e3).toFixed(1) + 'K m/s';
+            return mps.toFixed(0) + ' m/s';
+        }
+
+        // Start animation
+        animate();
+    </script>
+</body>
+</html>

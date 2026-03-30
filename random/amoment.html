@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>A Moment in Time</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=Space+Mono&display=swap');
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    :root {
+      --bg: #080808;
+      --text: #e8e4df;
+      --accent: #c9a87c;
+      --accent-dim: #c9a87c22;
+    }
+    
+    body {
+      font-family: 'Cormorant Garamond', serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow: hidden;
+      height: 100vh;
+      cursor: crosshair;
+    }
+    
+    #game-container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+    
+    .ui-layer {
+      position: absolute;
+      pointer-events: none;
+      z-index: 10;
+    }
+    
+    #title {
+      top: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 11px;
+      font-family: 'Space Mono', monospace;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      opacity: 0.3;
+    }
+    
+    #timer {
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 120px;
+      font-weight: 300;
+      opacity: 0;
+      transition: opacity 0.1s;
+    }
+    
+    #timer.visible {
+      opacity: 0.15;
+    }
+    
+    #instruction {
+      bottom: 60px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 14px;
+      font-style: italic;
+      opacity: 0;
+      transition: opacity 1s;
+    }
+    
+    #instruction.visible {
+      opacity: 0.4;
+    }
+    
+    #moment-display {
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      opacity: 0;
+      transition: all 0.8s ease-out;
+    }
+    
+    #moment-display.active {
+      opacity: 1;
+    }
+    
+    #moment-display h2 {
+      font-size: 32px;
+      font-weight: 400;
+      letter-spacing: 6px;
+      margin-bottom: 20px;
+    }
+    
+    #moment-display p {
+      font-size: 16px;
+      font-style: italic;
+      opacity: 0.6;
+    }
+    
+    #score {
+      top: 40px;
+      right: 40px;
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      opacity: 0.3;
+    }
+    
+    #streak {
+      bottom: 40px;
+      right: 40px;
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    
+    #streak.visible {
+      opacity: 0.4;
+    }
+    
+    .fade-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: var(--bg);
+      opacity: 0;
+      pointer-events: none;
+      z-index: 100;
+    }
+    
+    .particle {
+      position: absolute;
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      pointer-events: none;
+    }
+    
+    @keyframes floatParticle {
+      0% { opacity: 1; transform: translateY(0) scale(1); }
+      100% { opacity: 0; transform: translateY(-100px) scale(0); }
+    }
+    
+    #success-flash {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle, var(--accent) 0%, transparent 70%);
+      opacity: 0;
+      pointer-events: none;
+      z-index: 50;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <canvas id="canvas"></canvas>
+    
+    <div id="title" class="ui-layer">a moment in time</div>
+    <div id="timer" class="ui-layer">1.00</div>
+    <div id="instruction" class="ui-layer">click when the moment is right</div>
+    <div id="score" class="ui-layer">captured: <span id="capture-count">0</span></div>
+    <div id="streak" class="ui-layer">streak: <span id="streak-count">0</span></div>
+    
+    <div id="moment-display" class="ui-layer">
+      <h2 id="moment-title"></h2>
+      <p id="moment-desc"></p>
+    </div>
+  </div>
+  
+  <div id="success-flash"></div>
+  <div class="fade-overlay" id="fade"></div>
+  
+  <script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    
+    let width, height;
+    let currentMoment = null;
+    let momentTime = 0;
+    let capturing = false;
+    let captured = new Set();
+    let captureCount = 0;
+    let streak = 0;
+    let isTransitioning = false;
+    let particles = [];
+    let circles = [];
+    let started = false;
+    
+    const moments = [
+      {
+        name: 'first snow',
+        desc: 'the world goes quiet',
+        targetTime: 0.5,
+        tolerance: 0.15,
+        color: '#e8f4f8',
+        pattern: 'snow'
+      },
+      {
+        name: 'sunset kiss',
+        desc: 'time stops for a breath',
+        targetTime: 0.3,
+        tolerance: 0.2,
+        color: '#ff7b54',
+        pattern: 'gradient'
+      },
+      {
+        name: 'raindrop',
+        desc: 'a single drop falls',
+        targetTime: 0.7,
+        tolerance: 0.15,
+        color: '#7eb8da',
+        pattern: 'ripple'
+      },
+      {
+        name: 'breath',
+        desc: 'the pause between',
+        targetTime: 0.5,
+        tolerance: 0.1,
+        color: '#c9a87c',
+        pattern: 'pulse'
+      },
+      {
+        name: 'star',
+        desc: 'a distant light',
+        targetTime: 0.4,
+        tolerance: 0.25,
+        color: '#fffbe6',
+        pattern: 'spark'
+      },
+      {
+        name: 'wave',
+        desc: 'the tide returns',
+        targetTime: 0.6,
+        tolerance: 0.2,
+        color: '#4a90a4',
+        pattern: 'sine'
+      },
+      {
+        name: 'echo',
+        desc: 'what remains',
+        targetTime: 0.8,
+        tolerance: 0.15,
+        color: '#9b8aa5',
+        pattern: 'ring'
+      },
+      {
+        name: 'bloom',
+        desc: 'unfolds in darkness',
+        targetTime: 0.2,
+        tolerance: 0.2,
+        color: '#d4a5a5',
+        pattern: 'flower'
+      },
+      {
+        name: 'shadow',
+        desc: 'light\'s other half',
+        targetTime: 0.9,
+        tolerance: 0.12,
+        color: '#5a5a5a',
+        pattern: 'drift'
+      },
+      {
+        name: 'silence',
+        desc: 'the loudest sound',
+        targetTime: 0.5,
+        tolerance: 0.08,
+        color: '#a8a8a8',
+        pattern: 'void'
+      },
+      {
+        name: 'firefly',
+        desc: 'a wandering star',
+        targetTime: 0.35,
+        tolerance: 0.2,
+        color: '#f0e68c',
+        pattern: 'float'
+      },
+      {
+        name: 'mirror',
+        desc: 'you, but not you',
+        targetTime: 0.65,
+        tolerance: 0.15,
+        color: '#d0d0d0',
+        pattern: 'reflect'
+      }
+    ];
+    
+    function resize() {
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
+    }
+    
+    function startMoment() {
+      const available = moments.filter(m => !captured.has(m.name));
+      if (available.length === 0) {
+        // All captured, show completion
+        showEnding();
+        return;
+      }
+      
+      currentMoment = available[Math.floor(Math.random() * available.length)];
+      momentTime = 0;
+      capturing = true;
+      circles = [];
+      
+      document.getElementById('instruction').classList.add('visible');
+      document.getElementById('timer').classList.add('visible');
+    }
+    
+    function capture() {
+      if (!capturing || isTransitioning) return;
+      
+      const accuracy = Math.abs(momentTime - currentMoment.targetTime);
+      const success = accuracy <= currentMoment.tolerance;
+      
+      capturing = false;
+      isTransitioning = true;
+      
+      if (success) {
+        successCapture();
+      } else {
+        failCapture();
+      }
+    }
+    
+    function successCapture() {
+      captured.add(currentMoment.name);
+      captureCount++;
+      streak++;
+      
+      // Update UI
+      document.getElementById('capture-count').textContent = captureCount;
+      document.getElementById('streak-count').textContent = streak;
+      document.getElementById('streak').classList.add('visible');
+      
+      // Show moment
+      const display = document.getElementById('moment-display');
+      document.getElementById('moment-title').textContent = currentMoment.name;
+      document.getElementById('moment-desc').textContent = currentMoment.desc;
+      display.classList.add('active');
+      
+      // Flash effect
+      const flash = document.getElementById('success-flash');
+      flash.style.opacity = '0.3';
+      setTimeout(() => flash.style.opacity = '0', 500);
+      
+      // Create particles
+      createParticles();
+      
+      // Hide timer
+      document.getElementById('timer').classList.remove('visible');
+      document.getElementById('instruction').classList.remove('visible');
+      
+      // Next moment after delay
+      setTimeout(() => {
+        display.classList.remove('active');
+        isTransitioning = false;
+        startMoment();
+      }, 2500);
+    }
+    
+    function failCapture() {
+      streak = 0;
+      document.getElementById('streak-count').textContent = streak;
+      document.getElementById('streak').classList.remove('visible');
+      
+      // Fade effect
+      const fade = document.getElementById('fade');
+      fade.style.opacity = '0.8';
+      fade.style.transition = 'opacity 0.5s';
+      
+      setTimeout(() => {
+        fade.style.opacity = '0';
+        isTransitioning = false;
+        startMoment();
+      }, 800);
+    }
+    
+    function createParticles() {
+      for (let i = 0; i < 20; i++) {
+        setTimeout(() => {
+          const particle = document.createElement('div');
+          particle.className = 'particle';
+          particle.style.left = width/2 + (Math.random() - 0.5) * 200 + 'px';
+          particle.style.top = height/2 + (Math.random() - 0.5) * 200 + 'px';
+          particle.style.background = currentMoment.color;
+          particle.style.animation = `floatParticle ${1 + Math.random()}s ease-out forwards`;
+          document.body.appendChild(particle);
+          setTimeout(() => particle.remove(), 2000);
+        }, i * 50);
+      }
+    }
+    
+    function showEnding() {
+      const display = document.getElementById('moment-display');
+      document.getElementById('moment-title').textContent = 'moments collected';
+      document.getElementById('moment-desc').textContent = `${captureCount} fleeting instances preserved`;
+      display.classList.add('active');
+      
+      document.getElementById('title').textContent = 'time stands still';
+      document.getElementById('timer').classList.remove('visible');
+      document.getElementById('instruction').classList.remove('visible');
+    }
+    
+    function update(dt) {
+      if (capturing) {
+        momentTime += dt;
+        if (momentTime > 1) momentTime = 1;
+        
+        // Update timer display
+        const timer = document.getElementById('timer');
+        timer.textContent = momentTime.toFixed(2);
+        
+        // Create visual circles based on pattern
+        if (Math.random() < 0.1) {
+          circles.push({
+            x: Math.random() * width,
+            y: Math.random() * height,
+            radius: Math.random() * 50 + 20,
+            alpha: Math.random() * 0.3 + 0.1,
+            color: currentMoment.color,
+            growth: Math.random() * 0.5 + 0.5
+          });
+        }
+      }
+      
+      // Update circles
+      circles = circles.filter(c => {
+        c.radius += c.growth;
+        c.alpha -= 0.01;
+        return c.alpha > 0;
+      });
+    }
+    
+    function draw() {
+      ctx.fillStyle = '#080808';
+      ctx.fillRect(0, 0, width, height);
+      
+      // Draw ambient circles
+      for (let c of circles) {
+        ctx.beginPath();
+        ctx.arc(c.x, c.y, c.radius, 0, Math.PI * 2);
+        ctx.strokeStyle = c.color;
+        ctx.globalAlpha = c.alpha;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+      
+      // Draw central pulse when capturing
+      if (capturing && currentMoment) {
+        const pulse = Math.sin(momentTime * Math.PI * 4) * 0.5 + 0.5;
+        const radius = 30 + pulse * 20;
+        
+        ctx.beginPath();
+        ctx.arc(width/2, height/2, radius, 0, Math.PI * 2);
+        ctx.strokeStyle = currentMoment.color;
+        ctx.globalAlpha = 0.3;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+        
+        // Target indicator
+        const targetX = width/2;
+        const targetY = height/2 - 100;
+        
+        ctx.beginPath();
+        ctx.arc(targetX, targetY, 5, 0, Math.PI * 2);
+        ctx.fillStyle = currentMoment.color;
+        ctx.globalAlpha = 0.5;
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+    }
+    
+    let lastTime = 0;
+    function loop(time) {
+      const dt = (time - lastTime) / 1000;
+      lastTime = time;
+      
+      update(dt);
+      draw();
+      requestAnimationFrame(loop);
+    }
+    
+    // Input handlers
+    document.addEventListener('click', (e) => {
+      if (!started) {
+        started = true;
+        startMoment();
+        return;
+      }
+      
+      if (capturing && !isTransitioning) {
+        capture();
+      }
+    });
+    
+    document.addEventListener('keydown', (e) => {
+      if (e.code === 'Space' && !isTransitioning) {
+        if (!started) {
+          started = true;
+          startMoment();
+        } else if (capturing) {
+          capture();
+        }
+      }
+    });
+    
+    // Initialize
+    window.addEventListener('resize', resize);
+    resize();
+    loop(0);
+    
+    // Initial state
+    document.getElementById('title').textContent = 'a moment in time';
+  </script>
+</body>
+</html>

@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deep Sea Explorer | Journey Through Ocean Zones</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0a0c0f;
+            --bg2: #111418;
+            --bg3: #181d22;
+            --text: #e8e4da;
+            --muted: #7a7670;
+            --accent: #c8a96e;
+            --accent2: #5b8fa8;
+            --border: rgba(255,255,255,0.07);
+            --epipelagic: #1a5e8a;
+            --mesopelagic: #0d3a5e;
+            --bathypelagic: #081e30;
+            --abyssopelagic: #040f18;
+            --hadalpelagic: #02070c;
+        }
+
+        * { 
+            box-sizing: border-box; 
+            margin: 0; 
+            padding: 0; 
+        }
+
+        html { 
+            scroll-behavior: smooth; 
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'DM Mono', monospace;
+            overflow-x: hidden;
+            cursor: none;
+            min-height: 25000px;
+            position: relative;
+        }
+
+        /* Custom cursor */
+        #cursor {
+            position: fixed;
+            width: 12px; 
+            height: 12px;
+            border: 1.5px solid var(--accent);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 9999;
+            transform: translate(-50%, -50%);
+            transition: transform 0.08s, width 0.2s, height 0.2s, border-color 0.2s;
+            mix-blend-mode: difference;
+            background: rgba(200, 169, 110, 0.1);
+        }
+        
+        #cursor.big { 
+            width: 40px; 
+            height: 40px; 
+        }
+
+        /* Progress */
+        #progress {
+            position: fixed;
+            top: 0; 
+            left: 0;
+            height: 2px;
+            background: linear-gradient(90deg, var(--accent), var(--accent2));
+            z-index: 100;
+            width: 0%;
+            transition: width 0.1s linear;
+        }
+
+        /* Noise texture overlay */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");
+            opacity: 0.025;
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        /* Hero section */
+        #hero {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            border-bottom: 1px solid var(--border);
+            overflow: hidden;
+            background: radial-gradient(circle at center, #1a2332 0%, #0a0c0f 70%);
+        }
+
+        #hero::after {
+            content: '';
+            position: absolute;
+            bottom: 0; 
+            left: 50%;
+            transform: translateX(-50%);
+            width: 1px;
+            height: 80px;
+            background: linear-gradient(to bottom, var(--accent), transparent);
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse { 
+            0%,100%{opacity:0.4} 
+            50%{opacity:1} 
+        }
+
+        .hero-eyebrow {
+            font-size: 11px;
+            letter-spacing: 0.25em;
+            text-transform: uppercase;
+            color: var(--accent);
+            margin-bottom: 24px;
+            opacity: 0;
+            animation: fadeUp 0.8s ease forwards 0.2s;
+        }
+
+        .hero-title {
+            font-family: 'Playfair Display', serif;
+            font-size: clamp(52px, 10vw, 120px);
+            font-weight: 700;
+            line-height: 0.9;
+            text-align: center;
+            letter-spacing: -0.02em;
+            opacity: 0;
+            animation: fadeUp 0.9s ease forwards 0.4s;
+        }
+
+        .hero-title em {
+            font-style: italic;
+            color: var(--accent);
+        }
+
+        .hero-sub {
+            margin-top: 32px;
+            font-size: 13px;
+            color: var(--muted);
+            text-align: center;
+            line-height: 1.8;
+            max-width: 380px;
+            opacity: 0;
+            animation: fadeUp 0.9s ease forwards 0.6s;
+        }
+
+        .hero-scroll {
+            margin-top: 60px;
+            font-size: 11px;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: var(--muted);
+            opacity: 0;
+            animation: fadeUp 0.9s ease forwards 0.8s;
+        }
+
+        /* Floating particles in hero */
+        .particle {
+            position: absolute;
+            border-radius: 50%;
+            pointer-events: none;
+            animation: float linear infinite;
+            opacity: 0;
+            background: rgba(91, 143, 168, 0.3);
+        }
+
+        @keyframes float {
+            0% { transform: translateY(100vh) rotate(0deg); opacity: 0; }
+            10% { opacity: 0.4; }
+            90% { opacity: 0.4; }
+            100% { transform: translateY(-100px) rotate(360deg); opacity: 0; }
+        }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Scale intro bar */
+        #scale-intro {
+            padding: 60px 40px;
+            max-width: 860px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            gap: 32px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .scale-label {
+            font-size: 11px;
+            letter-spacing: 0.25em;
+            text-transform: uppercase;
+            color: var(--muted);
+            white-space: nowrap;
+        }
+
+        .scale-ruler {
+            flex: 1;
+            height: 1px;
+            background: linear-gradient(to right, var(--accent), var(--accent2), transparent);
+        }
+
+        /* Depth meter */
+        .depth-meter {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(17, 20, 24, 0.8);
+            color: var(--text);
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 16px;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        /* Zone markers */
+        .zone-marker {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            height: 1px;
+            z-index: -1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 1s ease;
+        }
+        
+        .zone-marker.visible {
+            opacity: 1;
+        }
+
+        .zone-label {
+            background: rgba(0,0,0,0.7);
+            color: var(--text);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: -10px;
+            border: 1px solid var(--border);
+        }
+
+        /* Main scroll container */
+        #animals {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 0 40px 120px;
+        }
+
+        /* Animal entry */
+        .animal-entry {
+            display: grid;
+            grid-template-columns: 180px 1fr;
+            gap: 0;
+            border-bottom: 1px solid var(--border);
+            min-height: 100px;
+            opacity: 0;
+            transform: translateX(-30px);
+            transition: opacity 0.7s ease, transform 0.7s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .animal-entry.visible {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .animal-entry:hover .animal-bg-text {
+            opacity: 0.06;
+            transform: translateX(0) scale(1.02);
+        }
+
+        .animal-bg-text {
+            position: absolute;
+            right: -20px;
+            bottom: -10px;
+            font-family: 'Playfair Display', serif;
+            font-size: 80px;
+            font-weight: 700;
+            color: var(--text);
+            opacity: 0;
+            transition: opacity 0.4s, transform 0.4s;
+            pointer-events: none;
+            transform: translateX(20px) scale(0.98);
+            line-height: 1;
+            user-select: none;
+        }
+
+        /* Left: metadata */
+        .animal-meta {
+            padding: 28px 24px 28px 0;
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            position: relative;
+        }
+
+        .animal-number {
+            font-size: 10px;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin-bottom: 4px;
+        }
+
+        .animal-depth {
+            font-size: 13px;
+            color: var(--accent);
+            font-weight: 500;
+        }
+
+        /* Right: content */
+        .animal-content {
+            padding: 28px 0 28px 24px;
+            display: flex;
+            align-items: center;
+        }
+
+        .animal-visual {
+            width: 80px;
+            height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            margin-right: 20px;
+            filter: drop-shadow(0 0 10px rgba(91, 143, 168, 0.3));
+        }
+
+        .animal-info {
+            flex: 1;
+        }
+
+        .animal-name {
+            font-size: 18px;
+            font-weight: 500;
+            margin-bottom: 8px;
+            color: var(--text);
+        }
+
+        .animal-fact {
+            font-size: 13px;
+            color: var(--muted);
+            line-height: 1.6;
+        }
+
+        /* Creature spotlight effect */
+        .creature-spotlight {
+            position: absolute;
+            width: 300px;
+            height: 300px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(91, 143, 168, 0.15) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: -1;
+            opacity: 0;
+            transition: opacity 1s ease;
+        }
+
+        .animal-entry.visible .creature-spotlight {
+            opacity: 1;
+        }
+
+        /* Zone-specific styles */
+        .zone-epipelagic .animal-entry,
+        .zone-epipelagic .zone-marker .zone-label {
+            border-color: var(--epipelagic);
+        }
+        
+        .zone-mesopelagic .animal-entry,
+        .zone-mesopelagic .zone-marker .zone-label {
+            border-color: var(--mesopelagic);
+        }
+        
+        .zone-bathypelagic .animal-entry,
+        .zone-bathypelagic .zone-marker .zone-label {
+            border-color: var(--bathypelagic);
+        }
+        
+        .zone-abyssopelagic .animal-entry,
+        .zone-abyssopelagic .zone-marker .zone-label {
+            border-color: var(--abyssopelagic);
+        }
+        
+        .zone-hadalpelagic .animal-entry,
+        .zone-hadalpelagic .zone-marker .zone-label {
+            border-color: var(--hadalpelagic);
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .animal-entry {
+                grid-template-columns: 1fr;
+            }
+            
+            .animal-meta {
+                border-right: none;
+                border-bottom: 1px solid var(--border);
+                padding-right: 0;
+            }
+            
+            .animal-content {
+                padding-left: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Custom cursor -->
+    <div id="cursor"></div>
+    
+    <!-- Progress bar -->
+    <div id="progress"></div>
+    
+    <!-- Depth meter -->
+    <div class="depth-meter">
+        <div id="depth">0m</div>
+    </div>
+    
+    <!-- Hero section -->
+    <section id="hero">
+        <h2 class="hero-eyebrow">Deep Sea Exploration</h2>
+        <h1 class="hero-title">Journey Through <em>Ocean Zones</em></h1>
+        <p class="hero-sub">Embark on an immersive journey through Earth's five oceanic zones. Discover creatures that exist in perpetual darkness.</p>
+        <p class="hero-scroll">Scroll to descend</p>
+        
+        <!-- Particles -->
+        <div class="particle" style="width: 3px; height: 3px; top: 20%; left: 10%; animation-duration: 15s;"></div>
+        <div class="particle" style="width: 2px; height: 2px; top: 40%; left: 80%; animation-duration: 20s;"></div>
+        <div class="particle" style="width: 4px; height: 4px; top: 60%; left: 30%; animation-duration: 18s;"></div>
+        <div class="particle" style="width: 2px; height: 2px; top: 80%; left: 70%; animation-duration: 22s;"></div>
+        <div class="particle" style="width: 3px; height: 3px; top: 30%; left: 50%; animation-duration: 16s;"></div>
+    </section>
+    
+    <!-- Scale introduction -->
+    <section id="scale-intro">
+        <div class="scale-label">Ocean Depth</div>
+        <div class="scale-ruler"></div>
+        <div class="scale-label">Surface → Abyss</div>
+    </section>
+    
+    <!-- Animals container -->
+    <section id="animals" class="zone-epipelagic">
+        <!-- Creatures will be dynamically inserted here -->
+    </section>
+
+    <script>
+        // Ocean zone definitions
+        const oceanZones = [
+            { name: "Epipelagic Zone", depthStart: 0, depthEnd: 200, color: "var(--epipelagic)" },
+            { name: "Mesopelagic Zone", depthStart: 200, depthEnd: 1000, color: "var(--mesopelagic)" },
+            { name: "Bathypelagic Zone", depthStart: 1000, depthEnd: 4000, color: "var(--bathypelagic)" },
+            { name: "Abyssopelagic Zone", depthStart: 4000, depthEnd: 6000, color: "var(--abyssopelagic)" },
+            { name: "Hadalpelagic Zone", depthStart: 6000, depthEnd: 11000, color: "var(--hadalpelagic)" }
+        ];
+
+        // Creature data with real facts
+        const creatures = [
+            // Epipelagic Zone (0-200m)
+            { depth: 50, emoji: '🐠', name: 'Clownfish', fact: 'Form symbiotic relationships with sea anemones, gaining protection from predators.', zone: 'Epipelagic' },
+            { depth: 100, emoji: '🐬', name: 'Bottlenose Dolphin', fact: 'Use echolocation to hunt and navigate. They can recognize themselves in mirrors.', zone: 'Epipelagic' },
+            { depth: 150, emoji: '🐙', name: 'Common Octopus', fact: 'Has three hearts and blue blood. Can change color and texture in milliseconds.', zone: 'Epipelagic' },
+            
+            // Mesopelagic Zone (200-1000m)
+            { depth: 250, emoji: '🦑', name: 'Firefly Squid', fact: 'Bioluminescent cephalopod found only in the Western Pacific. Emits blue light.', zone: 'Mesopelagic' },
+            { depth: 350, emoji: '🦀', name: 'Horseshoe Crab', fact: 'Living fossil that has remained unchanged for 445 million years. Blood is blue.', zone: 'Mesopelagic' },
+            { depth: 450, emoji: '🦈', name: 'Cookiecutter Shark', fact: 'Small shark that takes circular bites out of larger marine animals.', zone: 'Mesopelagic' },
+            { depth: 600, emoji: '🪼', name: 'Deepstaria Enigmatica', fact: 'Jellyfish that looks like a floating bag. Has no brain, heart, or bones.', zone: 'Mesopelagic' },
+            { depth: 750, emoji: '🐠', name: 'Barreleye Fish', fact: 'Has a transparent head and upward-facing eyes inside fluid-filled dome.', zone: 'Mesopelagic' },
+            { depth: 900, emoji: '🦐', name: 'Deep-Sea Shrimp', fact: 'Produces light through bioluminescence. Some species live over 200 years.', zone: 'Mesopelagic' },
+            
+            // Bathypelagic Zone (1000-4000m)
+            { depth: 1100, emoji: '🐡', name: 'Blobfish', fact: 'Gelatinous fish that appears blob-like at surface due to low density. Rarely seen alive.', zone: 'Bathypelagic' },
+            { depth: 1300, emoji: '🦑', name: 'Giant Squid', fact: 'Eyes are the size of dinner plates - the largest in the animal kingdom.', zone: 'Bathypelagic' },
+            { depth: 1500, emoji: '🦐', name: 'Yeti Crab', fact: 'Found near hydrothermal vents. Covered in hair-like structures called setae.', zone: 'Bathypelagic' },
+            { depth: 1750, emoji: '🦞', name: 'Munida Glacialis', fact: 'Crustacean that lives in deep Antarctic waters. Has a translucent shell.', zone: 'Bathypelagic' },
+            { depth: 2000, emoji: '🐟', name: 'Viperfish', fact: 'Has long needle-like teeth and a bioluminescent lure on its head.', zone: 'Bathypelagic' },
+            { depth: 2250, emoji: '🪼', name: 'Stygiomedusa Gigantea', fact: 'One of the largest deep-sea jellyfish, with bell diameter up to 1 meter.', zone: 'Bathypelagic' },
+            { depth: 2500, emoji: '🦑', name: 'Colossal Squid', fact: 'Largest invertebrate on Earth. Has rotating hooks on tentacles.', zone: 'Bathypelagic' },
+            { depth: 2750, emoji: '🦐', name: 'Rimicaris Exoculata', fact: 'Shrimp living near hydrothermal vents. Has no eyes but a light-sensitive organ.', zone: 'Bathypelagic' },
+            { depth: 3000, emoji: '🦈', name: 'Greenland Shark', fact: 'Longest-living vertebrate known to science, estimated to live over 400 years.', zone: 'Bathypelagic' },
+            { depth: 3250, emoji: '🪼', name: 'Atolla Wyvillei', fact: 'Known as "alarm jellyfish" - flashes bright blue when attacked.', zone: 'Bathypelagic' },
+            { depth: 3500, emoji: '🦑', name: 'Chtenopteryx Sicula', fact: 'Glass squid that can see in different directions.', zone: 'Bathypelagic' },
+            { depth: 3750, emoji: '🦐', name: 'Benthesicymus Pleocyematus', fact: 'Deep-water shrimp that lives at depths up to 4000m.', zone: 'Bathypelagic' },
+            
+            // Abyssopelagic Zone (4000-6000m)
+            { depth: 4100, emoji: '🦀', name: 'King Crabeater', fact: 'Actually feeds on krill, not crabs. Antarctic seal adapted for ice life.', zone: 'Abyssopelagic' },
+            { depth: 4250, emoji: '🦑', name: 'Taningia Danae', fact: 'Squid that produces intense blue-green bioluminescent flashes.', zone: 'Abyssopelagic' },
+            { depth: 4400, emoji: '🦐', name: 'Xiphocaris Revelator', fact: 'Caribbean cave shrimp found in anchialine pools.', zone: 'Abyssopelagic' },
+            { depth: 4550, emoji: '🐟', name: 'Tripod Fish', fact: 'Uses fins as sensory tripods to feel for prey on seafloor.', zone: 'Abyssopelagic' },
+            { depth: 4700, emoji: '🪼', name: 'Deep-Sea Comb Jelly', fact: 'Propels itself by beating rows of cilia that create rainbow colors.', zone: 'Abyssopelagic' },
+            { depth: 4850, emoji: '🦑', name: 'Teuthowenia Pellucida', fact: 'Glass octopus with transparent body and webbed arms.', zone: 'Abyssopelagic' },
+            { depth: 5000, emoji: '🦐', name: 'Oplophorus Gracilirostris', fact: 'Deep-sea shrimp that sprays bioluminescent ink to confuse predators.', zone: 'Abyssopelagic' },
+            { depth: 5150, emoji: '🐟', name: 'Pseudoliparis Belyaevi', fact: 'Deepest-living fish ever recorded at 8,336 meters depth.', zone: 'Abyssopelagic' },
+            { depth: 5300, emoji: '🦑', name: 'Benthesicymus', fact: 'Deep-water lobster that lives in the abyssal zone.', zone: 'Abyssopelagic' },
+            { depth: 5450, emoji: '🦐', name: 'Munidopsis Polymorpha', fact: 'Deep-sea squat lobster found in abyssal plains.', zone: 'Abyssopelagic' },
+            { depth: 5600, emoji: '🐟', name: 'Cusk Eel', fact: 'Eel-like fish that lives in deep trenches and caves.', zone: 'Abyssopelagic' },
+            { depth: 5750, emoji: '🦑', name: 'Gonatus', fact: 'Deep-sea squid that broods its eggs for up to 4 years.', zone: 'Abyssopelagic' },
+            
+            // Hadalpelagic Zone (6000-11000m)
+            { depth: 6100, emoji: '🦀', name: 'Amphionides Revalentina', fact: 'Deep-sea crustacean that lives in the deepest parts of the ocean.', zone: 'Hadalpelagic' },
+            { depth: 6250, emoji: '🦐', name: 'Bathynomus Raksasa', fact: 'Giant isopod that can grow up to 50cm long.', zone: 'Hadalpelagic' },
+            { depth: 6400, emoji: '🦑', name: 'Kondakovia Longimana', fact: 'Ice squid found in Antarctic waters.', zone: 'Hadalpelagic' },
+            { depth: 6550, emoji: '🐟', name: 'Snailfish', fact: 'Survives in the deepest ocean trenches where pressure is over 1000 times surface.', zone: 'Hadalpelagic' },
+            { depth: 6700, emoji: '🦐', name: 'Xenoturbella', fact: 'Primitive worm-like creature that was once thought to be a missing link.', zone: 'Hadalpelagic' },
+            { depth: 6850, emoji: '🦑', name: 'Grimpoteuthis', fact: 'Dumbo octopus with ear-like fins used for propulsion.', zone: 'Hadalpelagic' },
+            { depth: 7000, emoji: '🦀', name: 'Kiwa Hirsuta', fact: 'Yeti lobster covered in bacteria that detoxifies chemicals from vents.', zone: 'Hadalpelagic' },
+            { depth: 7150, emoji: '🦐', name: 'Rimicaris Hybisae', fact: 'Shrimp living near deep-sea hydrothermal vents.', zone: 'Hadalpelagic' },
+            { depth: 7300, emoji: '🐟', name: 'Pseudoliparis Atacamensis', fact: 'Lives in the Atacama Trench at depths exceeding 8,000m.', zone: 'Hadalpelagic' },
+            { depth: 7450, emoji: '🦑', name: 'Taningia', fact: 'Produces bioluminescent flashes brighter than any other cephalopod.', zone: 'Hadalpelagic' },
+            { depth: 7600, emoji: '🦐', name: 'Bathynomus', fact: 'Giant isopod that can go without food for up to 5 years.', zone: 'Hadalpelagic' },
+            { depth: 7750, emoji: '🐟', name: 'Abyssobrotula', fact: 'Deep-sea cusk-eel that lives in the abyssal zone.', zone: 'Hadalpelagic' },
+            { depth: 7900, emoji: '🦑', name: 'Cirroctopus', fact: 'Dumbo octopus that lives at depths greater than 4,000m.', zone: 'Hadalpelagic' },
+            { depth: 8050, emoji: '🦐', name: 'Alvinocarididae', fact: 'Family of deep-sea shrimp found near hydrothermal vents.', zone: 'Hadalpelagic' },
+            { depth: 8200, emoji: '🦀', name: 'Bythograea', fact: 'Vent crab that lives exclusively around hydrothermal vents.', zone: 'Hadalpelagic' },
+            { depth: 8350, emoji: '🐟', name: 'Pseudoliparis', fact: 'Genus of snailfish that includes the deepest-living fish species.', zone: 'Hadalpelagic' },
+            { depth: 8500, emoji: '🦑', name: 'Benthesicymus', fact: 'Deep-water lobster found in hadal zones.', zone: 'Hadalpelagic' },
+            { depth: 8650, emoji: '🦐', name: 'Rimicaris', fact: 'Shrimp that lives in dense colonies near hydrothermal vents.', zone: 'Hadalpelagic' },
+            { depth: 8800, emoji: '🐟', name: 'Notoscopelus', fact: 'Deep-sea fish that inhabits the bathyal and abyssal zones.', zone: 'Hadalpelagic' },
+            { depth: 8950, emoji: '🦑', name: 'Teuthowenia', fact: 'Deep-sea squid that produces bioluminescent displays.', zone: 'Hadalpelagic' },
+            { depth: 9100, emoji: '🦐', name: 'Oplophorus', fact: 'Deep-sea shrimp that sprays bioluminescent secretions.', zone: 'Hadalpelagic' },
+            { depth: 9250, emoji: '🦀', name: 'Xenoturbella', fact: 'Primitive marine worm-like animal with simple body plan.', zone: 'Hadalpelagic' },
+            { depth: 9400, emoji: '🐟', name: 'Bathynomus', fact: 'Giant isopod that scavenges on the ocean floor.', zone: 'Hadalpelagic' },
+            { depth: 9550, emoji: '🦑', name: 'Grimpoteuthis', fact: 'Dumbo octopus that uses its fins to "fly" through water.', zone: 'Hadalpelagic' },
+            { depth: 9700, emoji: '🦐', name: 'Munidopsis', fact: 'Deep-sea squat lobster that lives in hadal trenches.', zone: 'Hadalpelagic' },
+            { depth: 9850, emoji: '🐟', name: 'Pseudoliparis', fact: 'Adapted to survive extreme pressure in deep ocean trenches.', zone: 'Hadalpelagic' },
+            { depth: 10000, emoji: '🌑', name: 'The Abyssal Plain', fact: 'Flattest, most featureless area on Earth. Covers 70% of ocean floor.', zone: 'Hadalpelagic' },
+            { depth: 10500, emoji: '⚫', name: 'Challenger Deep', fact: 'Deepest known part of Mariana Trench at 10,994 meters below sea level.', zone: 'Hadalpelagic' },
+            { depth: 11000, emoji: '🌌', name: 'Hadopelagic Zone', fact: 'Zone of extreme pressure and complete darkness. Life exists in specialized forms.', zone: 'Hadalpelagic' }
+        ];
+
+        // Create zone markers
+        const animalsContainer = document.getElementById('animals');
+        oceanZones.forEach(zone => {
+            const marker = document.createElement('div');
+            marker.className = 'zone-marker';
+            marker.style.top = `${zone.depthStart * 1.8}px`;
+            marker.innerHTML = `<div class="zone-label">${zone.name}</div>`;
+            document.body.appendChild(marker);
+        });
+
+        // Create creature elements
+        creatures.forEach((creature, index) => {
+            const entry = document.createElement('div');
+            entry.className = 'animal-entry';
+            entry.dataset.depth = creature.depth;
+            entry.dataset.zone = creature.zone;
+            
+            entry.innerHTML = `
+                <div class="animal-meta">
+                    <div class="animal-number">${creature.zone.toUpperCase()} SPECIES</div>
+                    <div class="animal-depth">${creature.depth}m DEEP</div>
+                </div>
+                <div class="animal-content">
+                    <div class="animal-visual">${creature.emoji}</div>
+                    <div class="animal-info">
+                        <div class="animal-name">${creature.name}</div>
+                        <div class="animal-fact">${creature.fact}</div>
+                    </div>
+                    <div class="animal-bg-text">${creature.name.toUpperCase()}</div>
+                    <div class="creature-spotlight"></div>
+                </div>
+            `;
+            
+            animalsContainer.appendChild(entry);
+        });
+
+        // DOM elements
+        const depthDisplay = document.getElementById('depth');
+        const progress = document.getElementById('progress');
+        const cursor = document.getElementById('cursor');
+        const animalEntries = document.querySelectorAll('.animal-entry');
+        const heroSection = document.getElementById('hero');
+        const zoneMarkers = document.querySelectorAll('.zone-marker');
+
+        // Update cursor position
+        document.addEventListener('mousemove', (e) => {
+            cursor.style.left = e.clientX + 'px';
+            cursor.style.top = e.clientY + 'px';
+        });
+
+        // Add hover effects
+        document.addEventListener('mouseover', (e) => {
+            if (e.target.closest('.animal-entry')) {
+                cursor.classList.add('big');
+            }
+        });
+
+        document.addEventListener('mouseout', (e) => {
+            if (e.target.closest('.animal-entry')) {
+                cursor.classList.remove('big');
+            }
+        });
+
+        // Handle scroll events
+        window.addEventListener('scroll', () => {
+            const scrolled = window.scrollY;
+            const depth = Math.round(scrolled / 1.8);
+            
+            // Update depth meter
+            depthDisplay.textContent = `${depth}m`;
+            
+            // Update progress bar
+            const scrollPercent = (scrolled / (document.body.scrollHeight - window.innerHeight)) * 100;
+            progress.style.width = scrollPercent + '%';
+            
+            // Fade out hero as we scroll down
+            if (scrolled > 100) {
+                heroSection.style.opacity = Math.max(0, 1 - scrolled/500);
+            } else {
+                heroSection.style.opacity = 1;
+            }
+            
+            // Show creatures as we reach their depth
+            animalEntries.forEach(entry => {
+                const creatureDepth = parseInt(entry.dataset.depth);
+                const entryTop = entry.offsetTop;
+                
+                if (scrolled + window.innerHeight * 0.7 >= entryTop) {
+                    entry.classList.add('visible');
+                    
+                    // Add subtle brightness effect to the body as we go deeper
+                    const depthRatio = Math.min(depth / 11000, 1);
+                    document.body.style.background = `linear-gradient(to bottom, #0a0c0f, #050608, #000000)`;
+                    document.body.style.filter = `brightness(${1 - depthRatio * 0.4})`;
+                }
+            });
+            
+            // Show zone markers
+            zoneMarkers.forEach(marker => {
+                const markerTop = parseInt(marker.style.top);
+                if (scrolled + window.innerHeight * 0.5 >= markerTop) {
+                    marker.classList.add('visible');
+                    
+                    // Change background based on zone
+                    const zoneIndex = Array.from(zoneMarkers).indexOf(marker);
+                    if (oceanZones[zoneIndex]) {
+                        document.body.style.background = `linear-gradient(to bottom, ${oceanZones[zoneIndex].color}, #000000)`;
+                    }
+                }
+            });
+        });
+
+        // Initialize particles with random positions and animations
+        function initParticles() {
+            const particlesContainer = document.querySelector('#hero');
+            for (let i = 0; i < 20; i++) {
+                const particle = document.createElement('div');
+                particle.classList.add('particle');
+                
+                // Random properties
+                const size = Math.random() * 3 + 1;
+                const posX = Math.random() * 100;
+                const posY = Math.random() * 100;
+                const duration = Math.random() * 20 + 10;
+                
+                particle.style.width = `${size}px`;
+                particle.style.height = `${size}px`;
+                particle.style.left = `${posX}%`;
+                particle.style.top = `${posY}%`;
+                particle.style.animationDuration = `${duration}s`;
+                
+                particlesContainer.appendChild(particle);
+            }
+        }
+        
+        // Initialize particles when page loads
+        window.addEventListener('load', initParticles);
+    </script>
+</body>
+</html>

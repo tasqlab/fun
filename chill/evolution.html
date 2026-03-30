@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Evolution Simulator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0a0a0f;
+            --bg-panel: #12121a;
+            --bg-elevated: #1a1a25;
+            --accent-green: #22c55e;
+            --accent-cyan: #06b6d4;
+            --accent-amber: #f59e0b;
+            --accent-purple: #a855f7;
+            --accent-red: #ef4444;
+            --text-primary: #ffffff;
+            --text-secondary: #8b8b9e;
+            --text-muted: #5a5a6e;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            overflow: hidden;
+            min-height: 100vh;
+        }
+
+        #game-container {
+            display: grid;
+            grid-template-columns: 1fr 340px;
+            grid-template-rows: auto 1fr auto;
+            height: 100vh;
+            gap: 0;
+        }
+
+        /* Header */
+        header {
+            grid-column: 1 / -1;
+            background: var(--bg-panel);
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--accent-green), var(--accent-cyan));
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        h1 {
+            font-size: 1.3rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent-green), var(--accent-cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .generation-display {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.9rem;
+            color: var(--accent-green);
+            padding: 8px 16px;
+            background: rgba(34, 197, 94, 0.1);
+            border-radius: 8px;
+            border: 1px solid rgba(34, 197, 94, 0.2);
+        }
+
+        /* Main Canvas Area */
+        #canvas-area {
+            position: relative;
+            background: 
+                radial-gradient(ellipse at 30% 80%, rgba(34, 197, 94, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 70% 20%, rgba(6, 182, 212, 0.05) 0%, transparent 50%),
+                var(--bg-dark);
+            overflow: hidden;
+        }
+
+        #simulation-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        /* Environment indicator */
+        .env-indicator {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: var(--bg-panel);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            backdrop-filter: blur(10px);
+            z-index: 10;
+        }
+
+        .env-icon {
+            font-size: 1.5rem;
+        }
+
+        .env-info h3 {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .env-info p {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        /* Sidebar */
+        #sidebar {
+            background: var(--bg-panel);
+            border-left: 1px solid rgba(255,255,255,0.08);
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .panel {
+            background: var(--bg-elevated);
+            border-radius: 16px;
+            padding: 20px;
+        }
+
+        .panel h2 {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 16px;
+        }
+
+        /* Environmental Pressures */
+        .pressure-btn {
+            width: 100%;
+            padding: 14px 16px;
+            background: var(--bg-panel);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.95rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: all 0.2s;
+            margin-bottom: 10px;
+        }
+
+        .pressure-btn:hover {
+            background: var(--bg-elevated);
+            border-color: rgba(255,255,255,0.15);
+            transform: translateX(4px);
+        }
+
+        .pressure-btn.active {
+            border-color: var(--accent-amber);
+            background: rgba(245, 158, 11, 0.1);
+        }
+
+        .pressure-icon {
+            font-size: 1.3rem;
+        }
+
+        /* Stats */
+        .stat-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .stat-card {
+            background: var(--bg-panel);
+            border-radius: 10px;
+            padding: 14px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-family: 'Space Mono', monospace;
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--accent-cyan);
+        }
+
+        .stat-label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        /* Evolution Tree */
+        #evolution-tree {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .evo-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            background: var(--bg-panel);
+            transition: all 0.2s;
+        }
+
+        .evo-item.current {
+            border: 1px solid var(--accent-green);
+            background: rgba(34, 197, 94, 0.1);
+        }
+
+        .evo-item.locked {
+            opacity: 0.4;
+        }
+
+        .evo-icon {
+            font-size: 1.4rem;
+        }
+
+        .evo-info {
+            flex: 1;
+        }
+
+        .evo-name {
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .evo-era {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+        }
+
+        /* Easter Egg Reveal */
+        .easter-egg {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            background: var(--bg-panel);
+            border: 2px solid var(--accent-purple);
+            border-radius: 24px;
+            padding: 40px;
+            text-align: center;
+            z-index: 1000;
+            backdrop-filter: blur(20px);
+            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .easter-egg.show {
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        .easter-egg h2 {
+            font-size: 2rem;
+            color: var(--accent-purple);
+            margin-bottom: 8px;
+        }
+
+        .easter-egg .creature {
+            font-size: 4rem;
+            margin-bottom: 16px;
+        }
+
+        .easter-egg p {
+            color: var(--text-secondary);
+            margin-bottom: 24px;
+        }
+
+        .easter-egg button {
+            padding: 12px 32px;
+            background: var(--accent-purple);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-family: 'Outfit', sans-serif;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        /* Bottom Bar */
+        #bottom-bar {
+            grid-column: 1 / -1;
+            background: var(--bg-panel);
+            border-top: 1px solid rgba(255,255,255,0.08);
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .creature-info {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .current-creature-icon {
+            font-size: 2.5rem;
+        }
+
+        .current-creature-details h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .current-creature-details p {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .dna-display {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.8rem;
+            color: var(--accent-cyan);
+            background: var(--bg-elevated);
+            padding: 8px 16px;
+            border-radius: 8px;
+        }
+
+        /* Notifications */
+        #notifications {
+            position: fixed;
+            top: 80px;
+            right: 360px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 100;
+        }
+
+        .notification {
+            background: var(--bg-panel);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 14px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            animation: slideIn 0.3s ease-out;
+            backdrop-filter: blur(10px);
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .notification-icon {
+            font-size: 1.3rem;
+        }
+
+        .notification-text {
+            font-size: 0.9rem;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-dark);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--bg-elevated);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-muted);
+        }
+
+        /* Hidden easter egg key listener */
+        .hidden-trigger {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <header>
+            <div class="logo">
+                <div class="logo-icon">🧬</div>
+                <h1>Evolution Simulator</h1>
+            </div>
+            <div class="generation-display">GEN <span id="gen-count">1</span></div>
+        </header>
+
+        <div id="canvas-area">
+            <canvas id="simulation-canvas"></canvas>
+            
+            <div class="env-indicator">
+                <div class="env-icon" id="env-icon">🌊</div>
+                <div class="env-info">
+                    <h3 id="env-name">Ocean</h3>
+                    <p id="env-desc">Nutrient-rich waters</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="sidebar">
+            <div class="panel">
+                <h2>🌡️ Environmental Pressures</h2>
+                <button class="pressure-btn" data-pressure="predators">
+                    <span class="pressure-icon">🦈</span>
+                    <span>High Predation</span>
+                </button>
+                <button class="pressure-btn" data-pressure="food">
+                    <span class="pressure-icon">🌱</span>
+                    <span>Food Scarcity</span>
+                </button>
+                <button class="pressure-btn" data-pressure="cold">
+                    <span class="pressure-icon">❄️</span>
+                    <span>Ice Age</span>
+                </button>
+                <button class="pressure-btn" data-pressure="dry">
+                    <span class="pressure-icon">🏜️</span>
+                    <span>Drought</span>
+                </button>
+                <button class="pressure-btn" data-pressure="oxygen">
+                    <span class="pressure-icon">💨</span>
+                    <span>High Oxygen</span>
+                </button>
+            </div>
+
+            <div class="panel">
+                <h2>📊 Population Stats</h2>
+                <div class="stat-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="stat-pop">50</div>
+                        <div class="stat-label">Population</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="stat-avg-size">1.0</div>
+                        <div class="stat-label">Avg Size</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="stat-avg-speed">1.0</div>
+                        <div class="stat-label">Avg Speed</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="stat-mutation">0%</div>
+                        <div class="stat-label">Mutation Rate</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h2>🧬 Evolution Tree</h2>
+                <div id="evolution-tree"></div>
+            </div>
+        </div>
+
+        <div id="bottom-bar">
+            <div class="creature-info">
+                <div class="current-creature-icon" id="current-icon">🦠</div>
+                <div class="current-creature-details">
+                    <h3 id="current-name">Single Cell Organism</h3>
+                    <p id="current-era">Prehistoric Era • 4 Billion Years Ago</p>
+                </div>
+            </div>
+            <div class="dna-display">
+                DNA: <span id="dna-sequence">AAAA</span>
+            </div>
+        </div>
+    </div>
+
+    <div id="notifications"></div>
+
+    <div class="easter-egg" id="easter-egg">
+        <h2>🎉 EASTER EGG!</h2>
+        <div class="creature" id="easter-creature">🦕</div>
+        <h3 id="easter-name">Cursed Blob</h3>
+        <p id="easter-desc">You've discovered a forbidden evolution!</p>
+        <button onclick="closeEasterEgg()">Continue Evolution</button>
+    </div>
+
+    <script>
+        // Evolution stages with real data
+        const EVOLUTION_STAGES = [
+            { name: 'Single Cell', icon: '🦠', era: 'Prehistoric', time: '4B years ago', unlock: 0 },
+            { name: 'Multicellular', icon: '🔬', era: 'Prehistoric', time: '2B years ago', unlock: 10 },
+            { name: 'Jellyfish', icon: '🪼', era: 'Cambrian', time: '600M years ago', unlock: 25 },
+            { name: 'Trilobite', icon: '🦎', era: 'Cambrian', time: '521M years ago', unlock: 50 },
+            { name: 'Fish', icon: '🐟', era: 'Ordovician', time: '480M years ago', unlock: 100 },
+            { name: 'Amphibian', icon: '🐸', era: 'Devonian', time: '370M years ago', unlock: 175 },
+            { name: 'Reptile', icon: '🦎', era: 'Carboniferous', time: '320M years ago', unlock: 275 },
+            { name: 'Dinosaur', icon: '🦖', era: 'Triassic', time: '230M years ago', unlock: 400 },
+            { name: 'Bird', icon: '🐦', era: 'Jurassic', time: '150M years ago', unlock: 550 },
+            { name: 'Mammal', icon: '🐀', era: 'Jurassic', time: '160M years ago', unlock: 500 },
+            { name: 'Primate', icon: '🐒', era: 'Paleogene', time: '55M years ago', unlock: 750 },
+            { name: 'Early Human', icon: '🧑', era: 'Pleistocene', time: '2M years ago', unlock: 1000 },
+            { name: 'Modern Human', icon: '🧍', era: 'Holocene', time: '200K years ago', unlock: 1500 },
+        ];
+
+        // Easter eggs
+        const EASTER_EGGS = [
+            { name: 'Cursed Blob', icon: '👁️', desc: 'A mysterious organism that defies biology', condition: (g) => g.population > 1000 && g.avgSize > 5 },
+            { name: 'Loch Ness Pet', icon: '🦕', desc: 'Rumored to live in deep waters', condition: (g) => g.env === 'ocean' && g.generation > 500 },
+            { name: 'Ghost Whale', icon: '🐋', desc: 'An ethereal creature of the abyss', condition: (g) => g.env === 'deep' && g.population < 10 },
+            { name: 'Time Traveler', icon: '⏰', desc: 'Wait... this creature is from the future?!', condition: (g) => g.generation === 666 },
+            { name: 'Cosmic Entity', icon: '🛸', desc: 'It came from... elsewhere', condition: (g) => g.mutationRate > 50 },
+            { name: 'Capybara God', icon: '🥔', desc: 'The supreme being of evolution', condition: (g) => g.avgSize > 10 && g.generation > 300 },
+            { name: 'Diamond Shell', icon: '💎', desc: 'Evolution went... expensive', condition: (g) => g.avgSpeed > 5 && g.avgSize > 3 },
+            { name: 'Infinite Squid', icon: '🐙', desc: 'It has 1000 tentacles. Why?', condition: (g) => g.env === 'ice' && g.generation > 200 },
+        ];
+
+        // Game state
+        let game = {
+            generation: 1,
+            population: 50,
+            creatures: [],
+            environment: 'ocean',
+            pressures: [],
+            avgSize: 1.0,
+            avgSpeed: 1.0,
+            mutationRate: 5,
+            currentStage: 0,
+            dna: 'ATCG',
+            envHistory: ['ocean'],
+            easterEggsFound: []
+        };
+
+        // Canvas setup
+        const canvas = document.getElementById('simulation-canvas');
+        const ctx = canvas.getContext('2d');
+        
+        let canvasWidth, canvasHeight;
+        function resizeCanvas() {
+            const container = document.getElementById('canvas-area');
+            canvasWidth = container.clientWidth;
+            canvasHeight = container.clientHeight;
+            canvas.width = canvasWidth;
+            canvas.height = canvasHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        // Creature class
+        class Creature {
+            constructor(x, y, dna, size, speed) {
+                this.x = x || Math.random() * canvasWidth;
+                this.y = y || Math.random() * canvasHeight;
+                this.dna = dna || this.generateDNA();
+                this.size = size || 1;
+                this.speed = speed || 1;
+                this.vx = (Math.random() - 0.5) * 2;
+                this.vy = (Math.random() - 0.5) * 2;
+                this.energy = 100;
+                this.age = 0;
+                this.color = this.getColorFromDNA();
+            }
+
+            generateDNA() {
+                const bases = ['A', 'T', 'C', 'G'];
+                let dna = '';
+                for (let i = 0; i < 4; i++) {
+                    dna += bases[Math.floor(Math.random() * 4)];
+                }
+                return dna;
+            }
+
+            getColorFromDNA() {
+                const colors = [
+                    '#22c55e', '#06b6d4', '#a855f7', '#f59e0b',
+                    '#ef4444', '#ec4899', '#14b8a6', '#8b5cf6'
+                ];
+                let hash = 0;
+                for (let i = 0; i < this.dna.length; i++) {
+                    hash = this.dna.charCodeAt(i) + ((hash << 5) - hash);
+                }
+                return colors[Math.abs(hash) % colors.length];
+            }
+
+            update() {
+                // Movement
+                this.x += this.vx * this.speed * 2;
+                this.y += this.vy * this.speed * 2;
+
+                // Boundary wrap
+                if (this.x < 0) this.x = canvasWidth;
+                if (this.x > canvasWidth) this.x = 0;
+                if (this.y < 0) this.y = canvasHeight;
+                if (this.y > canvasHeight) this.y = 0;
+
+                // Random direction change
+                if (Math.random() < 0.02) {
+                    this.vx = (Math.random() - 0.5) * 2;
+                    this.vy = (Math.random() - 0.5) * 2;
+                }
+
+                // Energy and aging
+                this.energy -= 0.1;
+                this.age += 0.01;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                
+                // Glow effect
+                const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, this.size * 15);
+                gradient.addColorStop(0, this.color);
+                gradient.addColorStop(0.5, this.color + '80');
+                gradient.addColorStop(1, 'transparent');
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(0, 0, this.size * 15, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Core
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(0, 0, this.size * 8, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Highlight
+                ctx.fillStyle = 'rgba(255,255,255,0.4)';
+                ctx.beginPath();
+                ctx.arc(-this.size * 2, -this.size * 2, this.size * 3, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.restore();
+            }
+
+            mutate() {
+                if (Math.random() * 100 < game.mutationRate) {
+                    const bases = ['A', 'T', 'C', 'G'];
+                    const pos = Math.floor(Math.random() * 4);
+                    const newBase = bases[Math.floor(Math.random() * 4)];
+                    let newDNA = this.dna.split('');
+                    newDNA[pos] = newBase;
+                    this.dna = newDNA.join('');
+                    this.color = this.getColorFromDNA();
+                    
+                    // Mutate traits
+                    if (Math.random() < 0.5) {
+                        this.size = Math.max(0.5, Math.min(5, this.size + (Math.random() - 0.5) * 0.5));
+                    } else {
+                        this.speed = Math.max(0.5, Math.min(5, this.speed + (Math.random() - 0.5) * 0.5));
+                    }
+                    
+                    return true;
+                }
+                return false;
+            }
+        }
+
+        // Initialize creatures
+        function initCreatures() {
+            game.creatures = [];
+            for (let i = 0; i < game.population; i++) {
+                game.creatures.push(new Creature());
+            }
+            updateStats();
+            updateEvolutionTree();
+            updateCurrentCreature();
+        }
+
+        // Environment effects
+        const ENVIRONMENTS = {
+            ocean: { icon: '🌊', name: 'Ocean', desc: 'Nutrient-rich waters', pressure: { speed: 1, size: 1 } },
+            deep: { icon: '🦑', name: 'Deep Ocean', desc: 'Dark and cold', pressure: { speed: 0.5, size: 1.5 } },
+            land: { icon: '🌍', name: 'Land', desc: 'New frontier', pressure: { speed: 1.2, size: 1 } },
+            ice: { icon: '❄️', name: 'Ice Age', desc: 'Frozen wilderness', pressure: { speed: 0.8, size: 1.3 } },
+            desert: { icon: '🏜️', name: 'Desert', desc: 'Scorching heat', pressure: { speed: 1.5, size: 0.8 } }
+        };
+
+        // Apply environmental pressure
+        function applyPressure(pressure) {
+            game.pressures.push(pressure);
+            
+            switch(pressure) {
+                case 'predators':
+                    game.population = Math.max(10, game.population - 5);
+                    game.mutationRate += 10;
+                    showNotification('🦈', 'Predators introduced! Selection pressure increases!');
+                    break;
+                case 'food':
+                    game.avgSize *= 0.9;
+                    game.mutationRate += 5;
+                    showNotification('🌱', 'Food becomes scarce. Adaptation required!');
+                    break;
+                case 'cold':
+                    game.envHistory.push('ice');
+                    game.avgSize *= 1.2;
+                    showNotification('❄️', 'Ice Age begins! Larger creatures favored.');
+                    break;
+                case 'dry':
+                    game.envHistory.push('desert');
+                    game.avgSpeed *= 1.2;
+                    showNotification('🏜️', 'Drought strikes! Faster creatures survive.');
+                    break;
+                case 'oxygen':
+                    game.mutationRate += 15;
+                    game.avgSize *= 1.1;
+                    showNotification('💨', 'Oxygen levels spike! Mutations increase!');
+                    break;
+            }
+            
+            // Change environment
+            game.environment = ['ocean', 'deep', 'land', 'ice', 'desert'][Math.floor(Math.random() * 5)];
+            updateEnvironmentDisplay();
+            
+            // Apply selection
+            applySelection();
+            
+            // Check for evolution
+            checkEvolution();
+            
+            // Check easter eggs
+            checkEasterEggs();
+        }
+
+        function applySelection() {
+            const env = ENVIRONMENTS[game.environment];
+            
+            game.creatures = game.creatures.filter(c => {
+                // Selection based on traits
+                const sizeScore = c.size / game.avgSize;
+                const speedScore = c.speed / game.avgSpeed;
+                const survivalChance = 0.5 + (sizeScore * env.pressure.size * 0.25) + (speedScore * env.pressure.speed * 0.25);
+                return Math.random() < survivalChance;
+            });
+
+            // Reproduction
+            while (game.creatures.length < game.population) {
+                const parent = game.creatures[Math.floor(Math.random() * game.creatures.length)];
+                const child = new Creature(
+                    parent.x + (Math.random() - 0.5) * 20,
+                    parent.y + (Math.random() - 0.5) * 20,
+                    parent.dna,
+                    parent.size * (0.9 + Math.random() * 0.2),
+                    parent.speed * (0.9 + Math.random() * 0.2)
+                );
+                child.mutate();
+                game.creatures.push(child);
+            }
+        }
+
+        function checkEvolution() {
+            const nextStage = EVOLUTION_STAGES[game.currentStage + 1];
+            if (nextStage && game.generation >= nextStage.unlock) {
+                game.currentStage++;
+                showNotification('🧬', `EVOLUTION! ${nextStage.name} has emerged!`);
+                updateCurrentCreature();
+            }
+        }
+
+        function checkEasterEggs() {
+            EASTER_EGGS.forEach((egg, i) => {
+                if (!game.easterEggsFound.includes(i)) {
+                    const stats = {
+                        generation: game.generation,
+                        population: game.population,
+                        avgSize: game.avgSize,
+                        avgSpeed: game.avgSpeed,
+                        env: game.environment,
+                        mutationRate: game.mutationRate
+                    };
+                    
+                    if (egg.condition(stats)) {
+                        game.easterEggsFound.push(i);
+                        showEasterEgg(egg);
+                    }
+                }
+            });
+        }
+
+        function showEasterEgg(egg) {
+            document.getElementById('easter-creature').textContent = egg.icon;
+            document.getElementById('easter-name').textContent = egg.name;
+            document.getElementById('easter-desc').textContent = egg.desc;
+            document.getElementById('easter-egg').classList.add('show');
+        }
+
+        function closeEasterEgg() {
+            document.getElementById('easter-egg').classList.remove('show');
+        }
+
+        // UI Updates
+        function updateEnvironmentDisplay() {
+            const env = ENVIRONMENTS[game.environment];
+            document.getElementById('env-icon').textContent = env.icon;
+            document.getElementById('env-name').textContent = env.name;
+            document.getElementById('env-desc').textContent = env.desc;
+        }
+
+        function updateStats() {
+            document.getElementById('gen-count').textContent = game.generation;
+            document.getElementById('stat-pop').textContent = game.creatures.length;
+            
+            game.avgSize = game.creatures.reduce((sum, c) => sum + c.size, 0) / game.creatures.length;
+            game.avgSpeed = game.creatures.reduce((sum, c) => sum + c.speed, 0) / game.creatures.length;
+            
+            document.getElementById('stat-avg-size').textContent = game.avgSize.toFixed(1);
+            document.getElementById('stat-avg-speed').textContent = game.avgSpeed.toFixed(1);
+            document.getElementById('stat-mutation').textContent = game.mutationRate + '%';
+        }
+
+        function updateEvolutionTree() {
+            const tree = document.getElementById('evolution-tree');
+            tree.innerHTML = EVOLUTION_STAGES.map((stage, i) => {
+                const unlocked = i <= game.currentStage;
+                const current = i === game.currentStage;
+                return `
+                    <div class="evo-item ${unlocked ? '' : 'locked'} ${current ? 'current' : ''}">
+                        <div class="evo-icon">${unlocked ? stage.icon : '🔒'}</div>
+                        <div class="evo-info">
+                            <div class="evo-name">${unlocked ? stage.name : '???'}</div>
+                            <div class="evo-era">${unlocked ? stage.time : 'Locked'}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function updateCurrentCreature() {
+            const stage = EVOLUTION_STAGES[game.currentStage];
+            document.getElementById('current-icon').textContent = stage.icon;
+            document.getElementById('current-name').textContent = stage.name;
+            document.getElementById('current-era').textContent = `${stage.era} • ${stage.time}`;
+            
+            // Update DNA
+            const sampleDNA = game.creatures[0]?.dna || 'ATCG';
+            document.getElementById('dna-sequence').textContent = sampleDNA;
+        }
+
+        function showNotification(icon, text) {
+            const container = document.getElementById('notifications');
+            const notif = document.createElement('div');
+            notif.className = 'notification';
+            notif.innerHTML = `
+                <span class="notification-icon">${icon}</span>
+                <span class="notification-text">${text}</span>
+            `;
+            container.appendChild(notif);
+            
+            setTimeout(() => {
+                notif.style.opacity = '0';
+                setTimeout(() => notif.remove(), 300);
+            }, 4000);
+        }
+
+        // Pressure buttons
+        document.querySelectorAll('.pressure-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const pressure = btn.dataset.pressure;
+                applyPressure(pressure);
+                game.generation += 5;
+                updateStats();
+                updateEvolutionTree();
+            });
+        });
+
+        // Animation loop
+        function animate() {
+            ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+            
+            // Draw environment background
+            drawEnvironment();
+            
+            // Update and draw creatures
+            game.creatures.forEach(c => {
+                c.update();
+                c.draw();
+            });
+            
+            // Draw connections between nearby creatures
+            ctx.strokeStyle = 'rgba(34, 197, 94, 0.1)';
+            ctx.lineWidth = 1;
+            for (let i = 0; i < game.creatures.length; i++) {
+                for (let j = i + 1; j < game.creatures.length; j++) {
+                    const dx = game.creatures[i].x - game.creatures[j].x;
+                    const dy = game.creatures[i].y - game.creatures[j].y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < 50) {
+                        ctx.globalAlpha = 1 - dist / 50;
+                        ctx.beginPath();
+                        ctx.moveTo(game.creatures[i].x, game.creatures[i].y);
+                        ctx.lineTo(game.creatures[j].x, game.creatures[j].y);
+                        ctx.stroke();
+                    }
+                }
+            }
+            ctx.globalAlpha = 1;
+            
+            requestAnimationFrame(animate);
+        }
+
+        function drawEnvironment() {
+            // Gradient background based on environment
+            const gradients = {
+                ocean: ['#0a1628', '#0f2847', '#0a1628'],
+                deep: ['#050510', '#0a0a20', '#050510'],
+                land: ['#1a1510', '#2d2818', '#1a1510'],
+                ice: ['#101820', '#1a2530', '#101820'],
+                desert: ['#2a1a10', '#3d2818', '#2a1a10']
+            };
+            
+            const colors = gradients[game.environment] || gradients.ocean;
+            const gradient = ctx.createLinearGradient(0, 0, canvasWidth, canvasHeight);
+            gradient.addColorStop(0, colors[0]);
+            gradient.addColorStop(0.5, colors[1]);
+            gradient.addColorStop(1, colors[2]);
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+            
+            // Add some atmosphere particles
+            ctx.fillStyle = 'rgba(255,255,255,0.02)';
+            for (let i = 0; i < 20; i++) {
+                ctx.beginPath();
+                ctx.arc(
+                    (Date.now() / 50 + i * 100) % canvasWidth,
+                    Math.sin(Date.now() / 1000 + i) * 50 + canvasHeight / 2,
+                    Math.random() * 2 + 1,
+                    0, Math.PI * 2
+                );
+                ctx.fill();
+            }
+        }
+
+        // Easter egg: Konami code
+        let konamiCode = [];
+        const konamiSequence = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
+        
+        document.addEventListener('keydown', (e) => {
+            konamiCode.push(e.key);
+            if (konamiCode.length > 10) konamiCode.shift();
+            
+            if (konamiCode.join('').toLowerCase() === konamiSequence.join('').toLowerCase()) {
+                showEasterEgg({ name: 'Konami Master', icon: '👾', desc: 'You found the secret code!' });
+                konamiCode = [];
+            }
+        });
+
+        // Auto-evolve over time
+        setInterval(() => {
+            game.generation++;
+            applySelection();
+            checkEvolution();
+            checkEasterEggs();
+            updateStats();
+        }, 5000);
+
+        // Start game
+        initCreatures();
+        animate();
+    </script>
+</body>
+</html>
