@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>NEON DASH</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; -webkit-tap-highlight-color: transparent; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #05060d; font-family: 'Courier New', monospace; }
+  canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: pointer; }
+  #ui {
+    position: fixed; top: 0; left: 0; width: 100%; padding: 16px 20px;
+    display: flex; justify-content: space-between; align-items: flex-start;
+    color: #fff; pointer-events: none; z-index: 10;
+    text-shadow: 0 0 10px currentColor;
+  }
+  #score { font-size: 32px; font-weight: bold; color: #0ff; }
+  #best { font-size: 14px; color: #f0f; opacity: 0.8; }
+  #combo { font-size: 18px; color: #ff0; opacity: 0; transition: opacity 0.2s; }
+  #overlay {
+    position: fixed; inset: 0; display: flex; flex-direction: column;
+    justify-content: center; align-items: center; z-index: 20;
+    background: radial-gradient(circle, rgba(5,6,13,0.85), rgba(5,6,13,0.98));
+    color: #fff; text-align: center; padding: 20px;
+  }
+  #overlay h1 {
+    font-size: clamp(40px, 10vw, 80px); letter-spacing: 8px;
+    background: linear-gradient(90deg, #0ff, #f0f, #ff0, #0ff);
+    background-size: 300% 100%;
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: shimmer 3s linear infinite;
+    margin-bottom: 10px;
+  }
+  @keyframes shimmer { to { background-position: 300% 0; } }
+  #overlay p { font-size: 16px; color: #aaa; margin: 8px 0; letter-spacing: 2px; }
+  #overlay .big { font-size: 24px; color: #0ff; margin: 20px 0; }
+  #overlay button {
+    margin-top: 24px; padding: 14px 36px; font-size: 18px; letter-spacing: 4px;
+    background: transparent; color: #0ff; border: 2px solid #0ff;
+    cursor: pointer; font-family: inherit; font-weight: bold;
+    box-shadow: 0 0 20px #0ff4, inset 0 0 20px #0ff2;
+    transition: all 0.2s;
+  }
+  #overlay button:hover { background: #0ff2; box-shadow: 0 0 40px #0ff; }
+  .hidden { display: none !important; }
+  .hint { font-size: 13px; color: #666; margin-top: 30px; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="ui">
+  <div>
+    <div id="score">0</div>
+    <div id="best">BEST: 0</div>
+  </div>
+  <div id="combo">x1</div>
+</div>
+<div id="overlay">
+  <h1>NEON DASH</h1>
+  <p>MATCH THE COLOR • SURVIVE THE GATES</p>
+  <div class="big" id="finalScore"></div>
+  <button id="startBtn">START</button>
+  <p class="hint">TAP / CLICK / SPACE to change color</p>
+</div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const scoreEl = document.getElementById('score');
+  const bestEl = document.getElementById('best');
+  const comboEl = document.getElementById('combo');
+  const overlay = document.getElementById('overlay');
+  const startBtn = document.getElementById('startBtn');
+  const finalScore = document.getElementById('finalScore');
+
+  let W, H, DPR;
+  function resize() {
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth;
+    H = window.innerHeight;
+    canvas.width = W * DPR;
+    canvas.height = H * DPR;
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // Audio feedback
+  let audioCtx;
+  function beep(freq, dur = 0.08, type = 'square', vol = 0.1) {
+    try {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      o.type = type;
+      o.frequency.value = freq;
+      g.gain.value = vol;
+      g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+      o.connect(g); g.connect(audioCtx.destination);
+      o.start(); o.stop(audioCtx.currentTime + dur);
+    } catch(e) {}
+  }
+
+  const COLORS = [
+    { name: 'cyan',    hex: '#00ffff', r: 0,   g: 255, b: 255 },
+    { name: 'magenta', hex: '#ff00ff', r: 255, g: 0,   b: 255 },
+    { name: 'yellow',  hex: '#ffff00', r: 255, g: 255, b: 0   },
+    { name: 'lime',    hex: '#00ff66', r: 0,   g: 255, b: 102 }
+  ];
+
+  const state = {
+    running: false,
+    colorIdx: 0,
+    targetColorIdx: 0,
+    colorT: 0,
+    score: 0,
+    best: parseInt(localStorage.getItem('neonDashBest') || '0'),
+    combo: 0,
+    speed: 5,
+    gates: [],
+    particles: [],
+    trails: [],
+    shake: 0,
+    flash: 0,
+    time: 0,
+    spawnTimer: 0,
+    dead: false,
+    player: { x: 0, y: 0, r: 18, pulse: 0 }
+  };
+
+  bestEl.textContent = 'BEST: ' + state.best;
+
+  function reset() {
+    state.running = true;
+    state.colorIdx = 0;
+    state.targetColorIdx = 0;
+    state.colorT = 0;
+    state.score = 0;
+    state.combo = 0;
+    state.speed = 5;
+    state.gates = [];
+    state.particles = [];
+    state.trails = [];
+    state.shake = 0;
+    state.flash = 0;
+    state.time = 0;
+    state.spawnTimer = 0;
+    state.dead = false;
+    state.player.x = W * 0.25;
+    state.player.y = H * 0.5;
+    state.player.pulse = 0;
+    scoreEl.textContent = '0';
+    comboEl.style.opacity = '0';
+    overlay.classList.add('hidden');
+  }
+
+  function spawnGate() {
+    // pick a color that's different from current sometimes to create challenge
+    let ci;
+    if (Math.random() < 0.55) {
+      // match current
+      ci = state.colorIdx;
+    } else {
+      do { ci = Math.floor(Math.random() * COLORS.length); } while (ci === state.colorIdx);
+    }
+    const gap = 140 + Math.random() * 40;
+    const topH = 60 + Math.random() * (H * 0.35);
+    const bottomY = topH + gap;
+    state.gates.push({
+      x: W + 60,
+      topH: topH,
+      bottomY: bottomY,
+      colorIdx: ci,
+      passed: false,
+      width: 30
+    });
+  }
+
+  function spawnParticles(x, y, color, count = 20, speed = 6) {
+    for (let i = 0; i < count; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const s = Math.random() * speed + 1;
+      state.particles.push({
+        x, y,
+        vx: Math.cos(a) * s,
+        vy: Math.sin(a) * s,
+        life: 1,
+        color,
+        size: Math.random() * 3 + 1
+      });
+    }
+  }
+
+  function changeColor() {
+    if (!state.running || state.dead) return;
+    state.targetColorIdx = (state.targetColorIdx + 1) % COLORS.length;
+    state.colorT = 0;
+    beep(440 + state.targetColorIdx * 110, 0.06, 'square', 0.08);
+    spawnParticles(state.player.x, state.player.y, COLORS[state.targetColorIdx].hex, 12, 4);
+  }
+
+  function gameOver() {
+    state.dead = true;
+    state.running = false;
+    state.shake = 25;
+    state.flash = 1;
+    beep(120, 0.3, 'sawtooth', 0.15);
+    setTimeout(() => beep(80, 0.4, 'sawtooth', 0.12), 100);
+    spawnParticles(state.player.x, state.player.y, '#ff0044', 60, 10);
+    if (state.score > state.best) {
+      state.best = state.score;
+      localStorage.setItem('neonDashBest', state.best);
+      bestEl.textContent = 'BEST: ' + state.best;
+    }
+    setTimeout(() => {
+      finalScore.textContent = 'SCORE: ' + state.score + '  •  BEST: ' + state.best;
+      startBtn.textContent = 'RETRY';
+      overlay.classList.remove('hidden');
+    }, 800);
+  }
+
+  function update(dt) {
+    state.time += dt;
+    state.player.pulse += dt * 4;
+
+    // color transition
+    if (state.colorT < 1) {
+      state.colorT = Math.min(1, state.colorT + dt * 8);
+      if (state.colorT >= 1) state.colorIdx = state.targetColorIdx;
+    }
+
+    // speed ramps
+    state.speed = 5 + Math.min(8, state.score * 0.04);
+
+    // spawn gates
+    state.spawnTimer -= dt;
+    if (state.spawnTimer <= 0) {
+      spawnGate();
+      state.spawnTimer = Math.max(0.9, 1.8 - state.score * 0.008);
+    }
+
+    // move gates
+    for (const g of state.gates) {
+      g.x -= state.speed * dt * 60;
+    }
+
+    // player bob
+    state.player.y = H * 0.5 + Math.sin(state.time * 3) * 8;
+
+    // collisions
+    const p = state.player;
+    for (const g of state.gates) {
+      if (g.passed) continue;
+      if (g.x + g.width < p.x - p.r) {
+        g.passed = true;
+        state.score++;
+        state.combo++;
+        scoreEl.textContent = state.score;
+        comboEl.textContent = 'x' + state.combo;
+        comboEl.style.opacity = '1';
+        comboEl.style.color = COLORS[g.colorIdx].hex;
+        beep(660 + state.combo * 30, 0.08, 'triangle', 0.1);
+        spawnParticles(g.x + g.width, p.y, COLORS[g.colorIdx].hex, 15, 5);
+        state.flash = Math.max(state.flash, 0.15);
+        continue;
+      }
+      // check collision
+      if (p.x + p.r > g.x && p.x - p.r < g.x + g.width) {
+        // in gate zone
+        const inTop = p.y - p.r < g.topH;
+        const inBottom = p.y + p.r > g.bottomY;
+        if (inTop || inBottom) {
+          // hit a wall - check color match
+          // actually walls are color-coded: you only pass if colors match
+          // if colors don't match, you die
+          if (state.colorIdx !== g.colorIdx) {
+            gameOver();
+            return;
+          } else {
+            // match - pass through!
+            g.passed = true;
+            state.score++;
+            state.combo++;
+            scoreEl.textContent = state.score;
+            comboEl.textContent = 'x' + state.combo;
+            comboEl.style.opacity = '1';
+            comboEl.style.color = COLORS[g.colorIdx].hex;
+            beep(880 + state.combo * 40, 0.1, 'triangle', 0.12);
+            spawnParticles(p.x, p.y, COLORS[g.colorIdx].hex, 25, 7);
+            state.flash = Math.max(state.flash, 0.3);
+          }
+        }
+      }
+    }
+
+    // remove old gates
+    state.gates = state.gates.filter(g => g.x + g.width > -50);
+
+    // trails
+    const c = COLORS[state.colorIdx];
+    state.trails.push({
+      x: p.x, y: p.y, life: 1,
+      color: c.hex
+    });
+    if (state.trails.length > 25) state.trails.shift();
+    for (const t of state.trails) t.life -= dt * 3;
+    state.trails = state.trails.filter(t => t.life > 0);
+
+    // particles
+    for (const pt of state.particles) {
+      pt.x += pt.vx;
+      pt.y += pt.vy;
+      pt.vx *= 0.95;
+      pt.vy *= 0.95;
+      pt.life -= dt * 2;
+    }
+    state.particles = state.particles.filter(pt => pt.life > 0);
+
+    // decay effects
+    state.shake *= 0.88;
+    state.flash *= 0.9;
+  }
+
+  function draw() {
+    // shake
+    const sx = (Math.random() - 0.5) * state.shake;
+    const sy = (Math.random() - 0.5) * state.shake;
+    ctx.save();
+    ctx.translate(sx, sy);
+
+    // background
+    ctx.fillStyle = '#05060d';
+    ctx.fillRect(-50, -50, W + 100, H + 100);
+
+    // grid
+    ctx.strokeStyle = 'rgba(0, 255, 255, 0.06)';
+    ctx.lineWidth = 1;
+    const gridSize = 40;
+    const offset = (state.time * state.speed * 10) % gridSize;
+    for (let x = -offset; x < W; x += gridSize) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, H);
+      ctx.stroke();
+    }
+    for (let y = 0; y < H; y += gridSize) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(W, y);
+      ctx.stroke();
+    }
+
+    // gates
+    for (const g of state.gates) {
+      const col = COLORS[g.colorIdx];
+      const alpha = g.passed ? 0.3 : 1;
+      // glow
+      ctx.shadowColor = col.hex;
+      ctx.shadowBlur = 20;
+      ctx.fillStyle = col.hex + (g.passed ? '40' : 'dd');
+      ctx.fillRect(g.x, 0, g.width, g.topH);
+      ctx.fillRect(g.x, g.bottomY, g.width, H - g.bottomY);
+      // edges
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = col.hex;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(g.x, 0, g.width, g.topH);
+      ctx.strokeRect(g.x, g.bottomY, g.width, H - g.bottomY);
+      // color indicator dot
+      ctx.fillStyle = col.hex;
+      ctx.beginPath();
+      ctx.arc(g.x + g.width / 2, (g.topH + g.bottomY) / 2, 6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.shadowBlur = 0;
+
+    // trails
+    for (let i = 0; i < state.trails.length; i++) {
+      const t = state.trails[i];
+      ctx.globalAlpha = t.life * 0.6;
+      ctx.fillStyle = t.color;
+      const r = state.player.r * t.life * 0.8;
+      ctx.beginPath();
+      ctx.arc(t.x, t.y, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    // particles
+    for (const pt of state.particles) {
+      ctx.globalAlpha = pt.life;
+      ctx.fillStyle = pt.color;
+      ctx.shadowColor = pt.color;
+      ctx.shadowBlur = 10;
+      ctx.beginPath();
+      ctx.arc(pt.x, pt.y, pt.size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    ctx.shadowBlur = 0;
+
+    // player
+    if (!state.dead) {
+      const p = state.player;
+      const c = COLORS[state.colorIdx];
+      const tc = COLORS[state.targetColorIdx];
+      // interpolate color during transition
+      let r, g, b;
+      if (state.colorT < 1 && state.colorIdx !== state.targetColorIdx) {
+        const t = state.colorT;
+        r = Math.round(c.r + (tc.r - c.r) * t);
+        g = Math.round(c.g + (tc.g - c.g) * t);
+        b = Math.round(c.b + (tc.b - c.b) * t);
+      } else {
+        r = c.r; g = c.g; b = c.b;
+      }
+      const colHex = `rgb(${r},${g},${b})`;
+
+      // outer pulse
+      const pulse = 1 + Math.sin(p.pulse) * 0.1;
+      ctx.shadowColor = colHex;
+      ctx.shadowBlur = 30;
+      ctx.fillStyle = colHex;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r * pulse, 0, Math.PI * 2);
+      ctx.fill();
+      // inner
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r * 0.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // flash
+    if (state.flash > 0.01) {
+      ctx.fillStyle = `rgba(255,255,255,${state.flash * 0.3})`;
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    ctx.restore();
+  }
+
+  let lastTime = performance.now();
+  function loop(now) {
+    const dt = Math.min(0.05, (now - lastTime) / 1000);
+    lastTime = now;
+    if (state.running) update(dt);
+    else {
+      // still animate particles and shake when dead
+      for (const pt of state.particles) {
+        pt.x += pt.vx; pt.y += pt.vy;
+        pt.vx *= 0.95; pt.vy *= 0.95;
+        pt.life -= dt * 2;
+      }
+      state.particles = state.particles.filter(pt => pt.life > 0);
+      state.shake *= 0.88;
+      state.flash *= 0.9;
+    }
+    draw();
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+
+  // input
+  function handleInput(e) {
+    if (e) e.preventDefault();
+    if (!audioCtx) {
+      try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){}
+    }
+    if (state.running) {
+      changeColor();
+    }
+  }
+  canvas.addEventListener('pointerdown', handleInput);
+  window.addEventListener('keydown', (e) => {
+    if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyZ') {
+      handleInput(e);
+    }
+  });
+
+  startBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (!audioCtx) {
+      try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){}
+    }
+    reset();
+  });
+})();
+</script>
+</body>
+</html>
